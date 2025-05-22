@@ -1,15 +1,13 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShoppingCartIcon, SearchIcon, FilterIcon } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { ShoppingCartIcon, SearchIcon } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { useCart } from '@/contexts/CartContext';
 
 const foodItems = [
   {
@@ -37,7 +35,7 @@ const foodItems = [
     name: 'Vegan Protein Plate',
     description: 'Lentil patty, roasted vegetables, hummus, and quinoa with tahini dressing',
     price: 14.99,
-    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
+    image: 'https://images.unsplash.com/photo-1512621776951-a5b131c97ff8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
     protein: '28g',
     calories: '440',
     category: 'Plant Based'
@@ -77,11 +75,10 @@ const foodItems = [
 const categories = ['All', 'High Protein', 'Keto Friendly', 'Plant Based', 'Pre-Workout', 'Post-Workout', 'Omega Rich'];
 
 const Menu = () => {
-  const { toast } = useToast();
+  const { addItem } = useCart();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [cart, setCart] = useState<{id: number, name: string, price: number, quantity: number}[]>([]);
 
   const filteredItems = foodItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,23 +97,13 @@ const Menu = () => {
     return 0;
   });
 
-  const handleAddToCart = (item: {id: number, name: string, price: number}) => {
-    const existingItem = cart.find(cartItem => cartItem.id === item.id);
-    
-    if (existingItem) {
-      const updatedCart = cart.map(cartItem => 
-        cartItem.id === item.id 
-          ? { ...cartItem, quantity: cartItem.quantity + 1 } 
-          : cartItem
-      );
-      setCart(updatedCart);
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
-    }
-    
-    toast({
-      title: "Added to Cart",
-      description: `${item.name} has been added to your cart.`,
+  const handleAddToCart = (item: {id: number, name: string, price: number, image?: string}) => {
+    addItem({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: 1,
+      image: item.image
     });
   };
 
@@ -213,7 +200,12 @@ const Menu = () => {
                 <CardFooter>
                   <Button 
                     className="w-full bg-gym-600 hover:bg-gym-700 text-white"
-                    onClick={() => handleAddToCart({id: item.id, name: item.name, price: item.price})}
+                    onClick={() => handleAddToCart({
+                      id: item.id, 
+                      name: item.name, 
+                      price: item.price,
+                      image: item.image
+                    })}
                   >
                     <ShoppingCartIcon className="h-4 w-4 mr-2" />
                     Add to Cart

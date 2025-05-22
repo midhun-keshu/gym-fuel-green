@@ -3,9 +3,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ShoppingCartIcon, UserIcon, MenuIcon } from 'lucide-react';
+import { useCart } from '@/contexts/CartContext';
 
 const Navbar: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { totalItems } = useCart();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -33,9 +35,11 @@ const Navbar: React.FC = () => {
             <Link to="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingCartIcon className="h-6 w-6 text-gray-700" />
-                <span className="absolute -top-1 -right-1 bg-gym-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                  0
-                </span>
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-gym-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
+                    {totalItems}
+                  </span>
+                )}
               </Button>
             </Link>
             <Link to="/login">
@@ -69,7 +73,7 @@ const Navbar: React.FC = () => {
                 <Link to="/cart" className="flex items-center justify-between">
                   <span className="text-gray-700 hover:text-gym-600 font-medium">Cart</span>
                   <span className="bg-gym-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs">
-                    0
+                    {totalItems}
                   </span>
                 </Link>
                 <Link to="/login" className="text-gray-700 hover:text-gym-600 font-medium py-2">Login</Link>
