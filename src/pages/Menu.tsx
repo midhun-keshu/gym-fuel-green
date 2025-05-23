@@ -10,18 +10,7 @@ import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface FoodItem {
-  id: string; // Changed from number to string to match Supabase UUID format
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-  protein_grams: number | null;
-  calories: number | null;
-  category: string | null;
-  created_at?: string;
-}
+import { FoodItem } from '@/types/food';
 
 const Menu = () => {
   const { addItem, formatPrice } = useCart();
