@@ -139,10 +139,10 @@ const AdminFoodManagement = () => {
     setEditingId(item.id);
     setName(item.name);
     setDescription(item.description || '');
-    setPrice(String(item.price)); // Convert number to string
+    setPrice(String(item.price)); // Convert number to string explicitly
     setCategory(item.category || '');
-    setProteinGrams(item.protein_grams ? String(item.protein_grams) : ''); // Convert number to string
-    setCalories(item.calories ? String(item.calories) : ''); // Convert number to string
+    setProteinGrams(item.protein_grams !== null ? String(item.protein_grams) : ''); // Fix: Convert to string explicitly
+    setCalories(item.calories !== null ? String(item.calories) : ''); // Fix: Convert to string explicitly
     
     if (item.image_url) {
       setImagePreview(item.image_url);
@@ -270,8 +270,8 @@ const AdminFoodManagement = () => {
         description: description || null,
         price: priceValue,
         category: category || null,
-        protein_grams: proteinGrams ? parseFloat(proteinGrams) : null,
-        calories: calories ? parseInt(calories, 10) : null,
+        protein_grams: proteinGrams ? parseFloat(proteinGrams) : null, // Fix: Convert to number for database
+        calories: calories ? parseInt(calories, 10) : null, // Fix: Convert to number for database
         image_url: imageUrl,
         available: true
       };
