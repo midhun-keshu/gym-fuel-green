@@ -20,6 +20,7 @@ interface FoodItem {
   protein_grams: number;
   calories: number;
   category: string;
+  created_at?: string; // Add this property as optional
 }
 
 const Menu = () => {

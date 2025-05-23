@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -140,10 +139,10 @@ const AdminFoodManagement = () => {
     setEditingId(item.id);
     setName(item.name);
     setDescription(item.description || '');
-    setPrice(String(item.price));
+    setPrice(String(item.price)); // Convert number to string
     setCategory(item.category || '');
-    setProteinGrams(item.protein_grams ? String(item.protein_grams) : '');
-    setCalories(item.calories ? String(item.calories) : '');
+    setProteinGrams(item.protein_grams ? String(item.protein_grams) : ''); // Convert number to string
+    setCalories(item.calories ? String(item.calories) : ''); // Convert number to string
     
     if (item.image_url) {
       setImagePreview(item.image_url);
