@@ -8,7 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface FoodItem {
-  id: number;
+  id: string; // Changed from number to string to match Supabase UUID format
   name: string;
   description: string;
   price: number;
@@ -53,7 +53,7 @@ const FeaturedFoods: React.FC = () => {
 
   const handleAddToCart = (meal: FoodItem) => {
     addItem({
-      id: meal.id,
+      id: meal.id, // This is now a string, which matches the CartItem interface
       name: meal.name,
       price: meal.price,
       quantity: 1,
