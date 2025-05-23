@@ -6,20 +6,12 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCartIcon } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
-
-interface FoodItem {
-  id: string; // Changed from number to string to match Supabase UUID format
-  name: string;
-  description: string;
-  price: number;
-  image_url: string;
-  protein_grams: number;
-  calories: number;
-  category: string;
-}
+import { useToast } from '@/hooks/use-toast';
+import { FoodItem } from '@/types/food';
 
 const FeaturedFoods: React.FC = () => {
   const { addItem, formatPrice } = useCart();
+  const { toast } = useToast();
   const [featuredMeals, setFeaturedMeals] = useState<FoodItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,29 +27,127 @@ const FeaturedFoods: React.FC = () => {
 
         if (error) {
           console.error('Error fetching featured meals:', error);
+          toast({
+            title: "Error loading meals",
+            description: "Could not load featured meals. Please try again later.",
+            variant: "destructive",
+          });
           return;
         }
 
         if (data && data.length > 0) {
-          setFeaturedMeals(data as unknown as FoodItem[]);
+          console.log('Featured meals loaded:', data);
+          setFeaturedMeals(data as FoodItem[]);
+        } else {
+          // Insert some default meals if none exist
+          await addDefaultMealsIfNoneExist();
         }
       } catch (error) {
         console.error('Error fetching featured meals:', error);
+        toast({
+          title: "Error loading meals",
+          description: "Could not load featured meals. Please try again later.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFeaturedMeals();
-  }, []);
+  }, [toast]);
+
+  const addDefaultMealsIfNoneExist = async () => {
+    try {
+      const { count, error: countError } = await supabase
+        .from('food_items')
+        .select('*', { count: 'exact', head: true });
+
+      if (countError) {
+        throw countError;
+      }
+
+      if (count === 0) {
+        // Default meals data
+        const defaultMeals = [
+          {
+            name: "High Protein Chicken Bowl",
+            description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
+            price: 350,
+            image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+            protein_grams: 35,
+            calories: 420,
+            category: "High Protein",
+            available: true
+          },
+          {
+            name: "Keto-Friendly Steak Plate",
+            description: "Grass-fed steak with avocado and roasted vegetables.",
+            price: 450,
+            image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
+            protein_grams: 40,
+            calories: 550,
+            category: "Keto",
+            available: true
+          },
+          {
+            name: "Vegan Power Salad",
+            description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
+            price: 320,
+            image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+            protein_grams: 22,
+            calories: 380,
+            category: "Vegan",
+            available: true
+          }
+        ];
+
+        // Insert default meals
+        const { error: insertError } = await supabase
+          .from('food_items')
+          .insert(defaultMeals);
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        // Fetch the newly inserted meals
+        const { data: newMeals, error: fetchError } = await supabase
+          .from('food_items')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(3);
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        if (newMeals) {
+          setFeaturedMeals(newMeals as FoodItem[]);
+          console.log('Default meals created:', newMeals);
+          toast({
+            title: "Sample meals created",
+            description: "We've added some sample meals to get you started.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error setting up default meals:', error);
+    }
+  };
 
   const handleAddToCart = (meal: FoodItem) => {
     addItem({
-      id: meal.id, // This is now a string, which matches the CartItem interface
+      id: meal.id,
       name: meal.name,
       price: meal.price,
       quantity: 1,
       image: meal.image_url
+    });
+    
+    toast({
+      title: "Added to cart",
+      description: `${meal.name} has been added to your cart.`,
     });
   };
 

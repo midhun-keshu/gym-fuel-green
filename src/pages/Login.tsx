@@ -1,28 +1,29 @@
 
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { supabase } from '@/integrations/supabase/client';
+import ForgotPassword from '@/components/auth/ForgotPassword';
 
 const Login = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // Login with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -32,82 +33,116 @@ const Login = () => {
         throw error;
       }
 
+      // Successfully logged in
       toast({
         title: "Login successful",
-        description: "You have been successfully logged in.",
+        description: "Welcome back!",
       });
       
-      // Redirect based on user role (could be enhanced with role check)
-      navigate("/user-dashboard");
+      navigate('/');
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login failed",
-        description: error.message || "Invalid email or password",
+        description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+          <div className="max-w-md w-full space-y-8">
+            <div className="text-center">
+              <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Reset Password</h2>
+            </div>
+            <ForgotPassword />
+            <div className="text-center mt-4">
+              <Button 
+                variant="link" 
+                onClick={() => setShowForgotPassword(false)}
+                className="text-gym-600 hover:text-gym-800"
+              >
+                Back to Login
+              </Button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <div className="flex-grow container mx-auto px-4 py-12 flex justify-center items-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Login to your account</CardTitle>
-            <CardDescription className="text-center">
-              Enter your email and password to login
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  placeholder="name@example.com" 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-gym-600 hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <Input 
-                  id="password" 
-                  placeholder="••••••••" 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gym-600 hover:bg-gym-700"
-                disabled={isLoading}
-              >
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="text-center text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-gym-600 hover:underline">
-                Sign up
+      <div className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Or{" "}
+              <Link to="/register" className="font-medium text-gym-600 hover:text-gym-500">
+                create a new account
               </Link>
-            </div>
-          </CardFooter>
-        </Card>
+            </p>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Login</CardTitle>
+              <CardDescription>
+                Enter your email and password to access your account
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Button 
+                      variant="link" 
+                      className="px-0 font-normal text-sm text-gym-600" 
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                    >
+                      Forgot password?
+                    </Button>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign in"}
+                </Button>
+              </form>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <div></div>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
       <Footer />
     </div>
