@@ -82,7 +82,7 @@ const AdminFoodManagement = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this food item?')) {
       return;
     }
@@ -107,7 +107,7 @@ const AdminFoodManagement = () => {
     }
   };
   
-  const handleToggleAvailability = async (id: number, currentStatus: boolean) => {
+  const handleToggleAvailability = async (id: string, currentStatus: boolean) => {
     try {
       await toggleFoodItemAvailability(id, currentStatus);
       

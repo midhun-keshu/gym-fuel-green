@@ -10,8 +10,8 @@ import { FoodItem } from '@/types/food';
 interface FoodItemsListProps {
   foodItems: FoodItem[];
   onEdit: (item: FoodItem) => void;
-  onDelete: (id: number) => void;
-  onToggleAvailability: (id: number, currentStatus: boolean) => void;
+  onDelete: (id: string) => void;
+  onToggleAvailability: (id: string, currentStatus: boolean) => void;
 }
 
 const FoodItemsList = ({ foodItems, onEdit, onDelete, onToggleAvailability }: FoodItemsListProps) => {
