@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CartItem {
-  id: number;
+  id: string; // Changed from number to string to match Supabase UUID format
   name: string;
   price: number;
   quantity: number;
@@ -14,8 +14,8 @@ export interface CartItem {
 interface CartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (itemId: number) => void;
-  updateQuantity: (itemId: number, quantity: number) => void;
+  removeItem: (itemId: string) => void; // Changed from number to string
+  updateQuantity: (itemId: string, quantity: number) => void; // Changed from number to string
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -78,7 +78,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const removeItem = (itemId: number) => {
+  const removeItem = (itemId: string) => { // Changed from number to string
     setItems(prevItems => prevItems.filter(item => item.id !== itemId));
     
     toast({
@@ -87,7 +87,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const updateQuantity = (itemId: number, quantity: number) => {
+  const updateQuantity = (itemId: string, quantity: number) => { // Changed from number to string
     if (quantity <= 0) {
       removeItem(itemId);
       return;
