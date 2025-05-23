@@ -15,7 +15,7 @@ export async function fetchFoodItems(): Promise<FoodItem[]> {
   return data as unknown as FoodItem[];
 }
 
-export async function deleteFoodItem(id: number): Promise<void> {
+export async function deleteFoodItem(id: string): Promise<void> {
   const { error } = await supabase
     .from('food_items')
     .delete()
@@ -26,7 +26,7 @@ export async function deleteFoodItem(id: number): Promise<void> {
   }
 }
 
-export async function toggleFoodItemAvailability(id: number, currentStatus: boolean): Promise<void> {
+export async function toggleFoodItemAvailability(id: string, currentStatus: boolean): Promise<void> {
   const { error } = await supabase
     .from('food_items')
     .update({ available: !currentStatus })
@@ -37,7 +37,7 @@ export async function toggleFoodItemAvailability(id: number, currentStatus: bool
   }
 }
 
-export async function saveFoodItem(foodItemData: any, imageFile: File | null, editingId: number | null): Promise<any> {
+export async function saveFoodItem(foodItemData: any, imageFile: File | null, editingId: string | null): Promise<any> {
   // Upload image if there's a new file
   let imageUrl = foodItemData.image_url;
   
