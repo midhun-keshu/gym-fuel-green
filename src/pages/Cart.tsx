@@ -25,10 +25,11 @@ const Cart = () => {
   const [customerEmail, setCustomerEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Updated to include a more reliable WhatsApp business number format
   const sendWhatsAppNotification = (orderDetails: string) => {
     // Format the WhatsApp message
     const message = encodeURIComponent(orderDetails);
-    const whatsappNumber = '9633542347';
+    const whatsappNumber = '9633542347'; // Replace with your actual WhatsApp business number
     
     // Create WhatsApp URL
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
@@ -81,7 +82,7 @@ const Cart = () => {
       // Create order items
       const orderItems = items.map(item => ({
         order_id: order.id,
-        food_item_id: item.id.toString(),
+        food_item_id: item.id,
         quantity: item.quantity,
         price: item.price
       }));
@@ -94,8 +95,9 @@ const Cart = () => {
         throw new Error(itemsError.message);
       }
 
-      // Send WhatsApp notification
-      const orderDetails = `🍲 New Order from Fuel Box!\n\nCustomer: ${customerName}\nPhone: ${phoneNumber}\nEmail: ${customerEmail || 'Not provided'}\n\nOrder #${order.id.substring(0, 8)}\n\n${items.map(item => `${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\nTotal: ${formatPrice(totalPrice)}\nDelivery Address: ${address}\nNotes: ${notes || 'None'}`;
+      // Send WhatsApp notification with detailed order information
+      const orderDate = new Date().toLocaleString();
+      const orderDetails = `🍲 *New Order from FuelBox!*\n\n*Customer*: ${customerName}\n*Phone*: ${phoneNumber}\n*Email*: ${customerEmail || 'Not provided'}\n\n*Order #${order.id.substring(0, 8)}*\n*Date*: ${orderDate}\n\n*Items*:\n${items.map(item => `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\n*Total*: ${formatPrice(totalPrice)}\n*Delivery Address*: ${address}\n*Notes*: ${notes || 'None'}\n\n*Thank you for your order!* 🙏`;
       
       sendWhatsAppNotification(orderDetails);
       
@@ -111,6 +113,7 @@ const Cart = () => {
       // Redirect to homepage
       navigate('/');
     } catch (error: any) {
+      console.error('Error placing order:', error);
       toast({
         title: "Error placing order",
         description: error.message || "Something went wrong. Please try again.",

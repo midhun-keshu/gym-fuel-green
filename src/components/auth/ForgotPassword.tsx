@@ -19,6 +19,7 @@ const ForgotPassword: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,9 +28,6 @@ const ForgotPassword: React.FC = () => {
     try {
       // Format phone number if needed
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
-      
-      // In a real app, this would connect to Supabase phone auth
-      // For now, we're simulating the OTP process
       
       // Check if the phone number exists in the profiles table
       const { data, error } = await supabase
@@ -45,11 +43,17 @@ const ForgotPassword: React.FC = () => {
           variant: "destructive",
         });
       } else {
-        // In a real app, this would trigger an SMS with OTP
+        // Generate a 6-digit OTP
+        const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+        setGeneratedOtp(generatedCode);
+
+        // In a real app, this would send an SMS with OTP
+        // For demo purposes, we'll show the OTP in a toast
         toast({
-          title: "OTP Sent",
-          description: "A verification code has been sent to your phone. For this demo, use code '123456'",
+          title: "OTP Generated",
+          description: `For demonstration purposes, use this OTP: ${generatedCode}`,
         });
+        
         setStep('otp');
       }
     } catch (error) {
@@ -67,9 +71,8 @@ const ForgotPassword: React.FC = () => {
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // In a real app, validate the OTP against what was sent
-    // For demo purposes, we're using a hardcoded value
-    if (otp === '123456') {
+    // Validate the OTP against what was generated
+    if (otp === generatedOtp) {
       toast({
         title: "OTP Verified",
         description: "Your code has been verified. Please set a new password.",
@@ -109,11 +112,25 @@ const ForgotPassword: React.FC = () => {
     }
 
     try {
-      // In a real implementation, this would call Supabase or custom API to reset the password
-      // Here we're just simulating success
-      
-      // Wait a bit to simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Look up the user by phone number
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone_number', phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`)
+        .single();
+
+      if (profileError || !profileData) {
+        throw new Error('Could not find user profile');
+      }
+
+      // Use Supabase auth update user API to update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
       
       toast({
         title: "Password Updated",

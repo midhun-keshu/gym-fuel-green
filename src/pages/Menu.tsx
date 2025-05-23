@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,8 +42,15 @@ const Menu = () => {
         }
 
         if (data) {
-          console.log('Fetched food items:', data); // Debug log
-          setFoodItems(data as unknown as FoodItem[]);
+          console.log('Fetched food items:', data);
+          
+          if (data.length === 0) {
+            // If no food items exist, add default ones
+            await addDefaultFoodItems();
+            return;
+          }
+          
+          setFoodItems(data as FoodItem[]);
           
           // Extract unique categories
           const uniqueCategories = Array.from(
@@ -64,6 +72,139 @@ const Menu = () => {
 
     fetchFoodItems();
   }, [toast]);
+
+  const addDefaultFoodItems = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Default meals data with a variety of foods
+      const defaultFoods = [
+        {
+          name: "High Protein Chicken Bowl",
+          description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
+          price: 350,
+          image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+          protein_grams: 35,
+          calories: 420,
+          category: "High Protein",
+          available: true
+        },
+        {
+          name: "Keto-Friendly Steak Plate",
+          description: "Grass-fed steak with avocado and roasted vegetables.",
+          price: 450,
+          image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
+          protein_grams: 40,
+          calories: 550,
+          category: "Keto",
+          available: true
+        },
+        {
+          name: "Vegan Power Salad",
+          description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
+          price: 320,
+          image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+          protein_grams: 22,
+          calories: 380,
+          category: "Vegan",
+          available: true
+        },
+        {
+          name: "Protein Pancake Stack",
+          description: "Fluffy protein pancakes topped with fresh berries and honey.",
+          price: 280,
+          image_url: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+          protein_grams: 25,
+          calories: 450,
+          category: "Breakfast",
+          available: true
+        },
+        {
+          name: "Salmon Superfood Bowl",
+          description: "Grilled salmon with kale, quinoa, avocado, and lemon dressing.",
+          price: 420,
+          image_url: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80",
+          protein_grams: 32,
+          calories: 490,
+          category: "Seafood",
+          available: true
+        },
+        {
+          name: "Turkey Wrap",
+          description: "Sliced turkey breast with fresh vegetables in a whole grain wrap.",
+          price: 290,
+          image_url: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80",
+          protein_grams: 28,
+          calories: 380,
+          category: "Lunch",
+          available: true
+        },
+        {
+          name: "Protein Smoothie",
+          description: "Blended whey protein with banana, peanut butter, and almond milk.",
+          price: 220,
+          image_url: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80",
+          protein_grams: 30,
+          calories: 320,
+          category: "Beverages",
+          available: true
+        },
+        {
+          name: "Muscle Builder Meal",
+          description: "Grilled chicken, sweet potato, and steamed broccoli with olive oil.",
+          price: 380,
+          image_url: "https://images.unsplash.com/photo-1497888329096-51c27beff665?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80",
+          protein_grams: 45,
+          calories: 520,
+          category: "High Protein",
+          available: true
+        }
+      ];
+
+      // Insert default meals
+      const { error: insertError } = await supabase
+        .from('food_items')
+        .insert(defaultFoods);
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      // Fetch the newly inserted meals
+      const { data: newFoods, error: fetchError } = await supabase
+        .from('food_items')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      if (newFoods) {
+        setFoodItems(newFoods as FoodItem[]);
+        
+        // Extract unique categories
+        const uniqueCategories = Array.from(
+          new Set(newFoods.map(item => item.category).filter(Boolean))
+        );
+        setCategories(['All', ...uniqueCategories]);
+        
+        toast({
+          title: "Sample menu items created",
+          description: "We've added some sample menu items to get you started.",
+        });
+      }
+    } catch (error) {
+      console.error('Error setting up default food items:', error);
+      toast({
+        title: "Error",
+        description: "Could not create default menu items.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredItems = foodItems.filter(item => {
     const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,7 +300,8 @@ const Menu = () => {
         {/* Menu Items Grid */}
         {isLoading ? (
           <div className="text-center py-12">
-            <p className="text-lg">Loading menu items...</p>
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
+            <p className="mt-4 text-lg">Loading menu items...</p>
           </div>
         ) : sortedItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
