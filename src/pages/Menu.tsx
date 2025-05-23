@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,21 +9,23 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface FoodItem {
-  id: number;
+  id: string; // Changed from number to string to match Supabase UUID format
   name: string;
   description: string;
   price: number;
   image_url: string;
-  protein_grams: number;
-  calories: number;
-  category: string;
-  created_at?: string; // Add this property as optional
+  protein_grams: number | null;
+  calories: number | null;
+  category: string | null;
+  created_at?: string;
 }
 
 const Menu = () => {
   const { addItem, formatPrice } = useCart();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -42,10 +43,16 @@ const Menu = () => {
 
         if (error) {
           console.error('Error fetching food items:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load menu items. Please try again later.",
+            variant: "destructive",
+          });
           return;
         }
 
         if (data) {
+          console.log('Fetched food items:', data); // Debug log
           setFoodItems(data as unknown as FoodItem[]);
           
           // Extract unique categories
@@ -56,13 +63,18 @@ const Menu = () => {
         }
       } catch (error) {
         console.error('Error fetching food items:', error);
+        toast({
+          title: "Error",
+          description: "Something went wrong while loading the menu.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchFoodItems();
-  }, []);
+  }, [toast]);
 
   const filteredItems = foodItems.filter(item => {
     const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,6 +104,12 @@ const Menu = () => {
       price: item.price,
       quantity: 1,
       image: item.image_url
+    });
+    
+    toast({
+      title: "Added to cart",
+      description: `${item.name} has been added to your cart.`,
+      variant: "default",
     });
   };
 

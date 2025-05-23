@@ -7,6 +7,8 @@ import { EyeIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import OrderDetail from './OrderDetail';
+import { formatOrderStatus, getStatusColorScheme } from '@/utils/orderUtils';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderItem {
   id: string;
@@ -31,6 +33,7 @@ const OrderHistory: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -39,6 +42,7 @@ const OrderHistory: React.FC = () => {
       
       if (!session) {
         // Not logged in
+        setLoading(false);
         return;
       }
       
@@ -88,13 +92,18 @@ const OrderHistory: React.FC = () => {
         setOrders(ordersWithItems);
       } catch (error) {
         console.error('Error fetching orders:', error);
+        toast({
+          title: "Error loading orders",
+          description: "There was a problem retrieving your order history.",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchOrders();
-  }, []);
+  }, [toast]);
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
@@ -104,28 +113,29 @@ const OrderHistory: React.FC = () => {
   if (loading) {
     return (
       <div className="text-center py-8">
-        <p>Loading orders...</p>
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
+        <p className="mt-2">Loading orders...</p>
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="animate-fade-in">
       {orders.length === 0 ? (
         <div className="text-center py-10">
           <p className="text-gray-500">You haven't placed any orders yet.</p>
           <Button 
-            className="mt-4 bg-gym-600 hover:bg-gym-700"
+            className="mt-4 bg-gym-600 hover:bg-gym-700 transition-transform hover:scale-105"
             onClick={() => navigate('/menu')}
           >
             Browse Menu
           </Button>
         </div>
       ) : (
-        <div>
+        <div className="overflow-hidden rounded-lg border border-gray-200">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-gray-50">
                 <TableHead>Order ID</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -136,16 +146,12 @@ const OrderHistory: React.FC = () => {
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
-                <TableRow key={order.id}>
+                <TableRow key={order.id} className="hover:bg-gray-50 transition-colors duration-150">
                   <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
                   <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={
-                      order.status === 'delivered' ? 'bg-green-100 text-green-800 border-green-200' :
-                      order.status === 'processing' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
-                      'bg-yellow-100 text-yellow-800 border-yellow-200'
-                    }>
-                      {order.status}
+                    <Badge variant="outline" className={getStatusColorScheme(order.status)}>
+                      {formatOrderStatus(order.status)}
                     </Badge>
                   </TableCell>
                   <TableCell>${order.total.toFixed(2)}</TableCell>
@@ -155,6 +161,7 @@ const OrderHistory: React.FC = () => {
                       variant="ghost" 
                       size="sm"
                       onClick={() => handleViewOrder(order)}
+                      className="transition-colors hover:bg-gym-100"
                     >
                       <EyeIcon className="h-4 w-4 mr-1" /> View
                     </Button>
