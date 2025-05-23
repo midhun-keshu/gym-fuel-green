@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,6 +19,7 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  formatPrice: (price: number) => string;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,6 +31,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Calculate derived values
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Format price to Indian Rupees
+  const formatPrice = (price: number) => {
+    return `₹${price.toFixed(2)}`;
+  };
 
   // Load cart from localStorage on component mount
   useEffect(() => {
@@ -105,7 +112,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updateQuantity,
       clearCart,
       totalItems,
-      totalPrice
+      totalPrice,
+      formatPrice
     }}>
       {children}
     </CartContext.Provider>

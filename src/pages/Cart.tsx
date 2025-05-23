@@ -14,20 +14,34 @@ import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 
 const Cart = () => {
-  const { items, removeItem, updateQuantity, totalPrice, clearCart } = useCart();
+  const { items, removeItem, updateQuantity, totalPrice, clearCart, formatPrice } = useCart();
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [address, setAddress] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [notes, setNotes] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sendWhatsAppNotification = (orderDetails: string) => {
+    // Format the WhatsApp message
+    const message = encodeURIComponent(orderDetails);
+    const whatsappNumber = '9633542347';
+    
+    // Create WhatsApp URL
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
+    
+    // Open WhatsApp in a new window
+    window.open(whatsappUrl, '_blank');
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
-    if (!address || !phoneNumber) {
+    if (!address || !phoneNumber || !customerName) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields.",
@@ -39,24 +53,19 @@ const Cart = () => {
     setIsSubmitting(true);
     
     try {
-      // Get current user
+      // Check if user is logged in
       const { data: { session } } = await supabase.auth.getSession();
+      let userId = null;
       
-      if (!session) {
-        toast({
-          title: "Please login",
-          description: "You need to be logged in to complete your order",
-          variant: "destructive",
-        });
-        navigate('/login');
-        return;
+      if (session) {
+        userId = session.user.id;
       }
       
       // Create order in Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: session.user.id,
+          user_id: userId || '00000000-0000-0000-0000-000000000000', // Use a placeholder UUID for guest users
           delivery_address: address,
           phone_number: phoneNumber,
           total_amount: totalPrice,
@@ -85,11 +94,10 @@ const Cart = () => {
         throw new Error(itemsError.message);
       }
 
-      // Send WhatsApp notification (simulation)
-      const orderDetails = items.map(item => `${item.quantity}x ${item.name} - $${(item.price * item.quantity).toFixed(2)}`).join('\n');
-      const message = `🍲 New Order #${order.id.substring(0, 8)}!\n\n${orderDetails}\n\nTotal: $${totalPrice.toFixed(2)}\nDelivery Address: ${address}\nPhone: ${phoneNumber}\nNotes: ${notes || 'None'}`;
+      // Send WhatsApp notification
+      const orderDetails = `🍲 New Order from Fuel Box!\n\nCustomer: ${customerName}\nPhone: ${phoneNumber}\nEmail: ${customerEmail || 'Not provided'}\n\nOrder #${order.id.substring(0, 8)}\n\n${items.map(item => `${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\nTotal: ${formatPrice(totalPrice)}\nDelivery Address: ${address}\nNotes: ${notes || 'None'}`;
       
-      console.log("WhatsApp notification would be sent:", message);
+      sendWhatsAppNotification(orderDetails);
       
       // Clear cart after successful order
       clearCart();
@@ -100,8 +108,8 @@ const Cart = () => {
         description: "Your order has been placed. You'll receive a WhatsApp confirmation shortly.",
       });
       
-      // Redirect to user dashboard
-      navigate('/user-dashboard');
+      // Redirect to homepage
+      navigate('/');
     } catch (error: any) {
       toast({
         title: "Error placing order",
@@ -153,7 +161,7 @@ const Cart = () => {
                         )}
                         <div>
                           <h3 className="font-medium">{item.name}</h3>
-                          <p className="text-gray-500">${item.price.toFixed(2)}</p>
+                          <p className="text-gray-500">{formatPrice(item.price)}</p>
                         </div>
                       </div>
                       
@@ -197,7 +205,7 @@ const Cart = () => {
                   </Button>
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Subtotal</p>
-                    <p className="text-2xl font-bold">${totalPrice.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">{formatPrice(totalPrice)}</p>
                   </div>
                 </CardFooter>
               </Card>
@@ -211,6 +219,29 @@ const Cart = () => {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleCheckout} className="space-y-4">
+                    {/* Customer Information */}
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="Enter your full name"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email (optional)</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                      />
+                    </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="address">Delivery Address</Label>
                       <Textarea 

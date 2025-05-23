@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,81 +9,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useCart } from '@/contexts/CartContext';
+import { supabase } from '@/integrations/supabase/client';
 
-const foodItems = [
-  {
-    id: 1,
-    name: 'Protein Power Bowl',
-    description: 'Grilled chicken breast, quinoa, black beans, avocado, and roasted vegetables',
-    price: 15.99,
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1160&q=80',
-    protein: '42g',
-    calories: '480',
-    category: 'High Protein'
-  },
-  {
-    id: 2,
-    name: 'Muscle Builder Salmon',
-    description: 'Baked salmon with sweet potato, broccoli, and lemon-dill sauce',
-    price: 18.99,
-    image: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1287&q=80',
-    protein: '35g',
-    calories: '520',
-    category: 'Omega Rich'
-  },
-  {
-    id: 3,
-    name: 'Vegan Protein Plate',
-    description: 'Lentil patty, roasted vegetables, hummus, and quinoa with tahini dressing',
-    price: 14.99,
-    image: 'https://images.unsplash.com/photo-1512621776951-a5b131c97ff8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-    protein: '28g',
-    calories: '440',
-    category: 'Plant Based'
-  },
-  {
-    id: 4,
-    name: 'Keto Steak Bowl',
-    description: 'Grass-fed steak, avocado, cauliflower rice, and mixed greens with chimichurri',
-    price: 17.99,
-    image: 'https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1169&q=80',
-    protein: '38g',
-    calories: '510',
-    category: 'Keto Friendly'
-  },
-  {
-    id: 5,
-    name: 'Pre-Workout Energizer',
-    description: 'Banana protein pancakes with almond butter, berries, and honey',
-    price: 12.99,
-    image: 'https://images.unsplash.com/photo-1486328228599-85db4443971f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-    protein: '25g',
-    calories: '450',
-    category: 'Pre-Workout'
-  },
-  {
-    id: 6,
-    name: 'Recovery Smoothie Bowl',
-    description: 'Protein-packed smoothie with fruits, granola, and nut butter toppings',
-    price: 11.99,
-    image: 'https://images.unsplash.com/photo-1622484212790-a5b131c97ff8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-    protein: '30g',
-    calories: '420',
-    category: 'Post-Workout'
-  },
-];
-
-const categories = ['All', 'High Protein', 'Keto Friendly', 'Plant Based', 'Pre-Workout', 'Post-Workout', 'Omega Rich'];
+interface FoodItem {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  protein_grams: number;
+  calories: number;
+  category: string;
+}
 
 const Menu = () => {
-  const { addItem } = useCart();
+  const { addItem, formatPrice } = useCart();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('recommended');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFoodItems = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('food_items')
+          .select('*')
+          .eq('available', true);
+
+        if (error) {
+          console.error('Error fetching food items:', error);
+          return;
+        }
+
+        if (data) {
+          setFoodItems(data as unknown as FoodItem[]);
+          
+          // Extract unique categories
+          const uniqueCategories = Array.from(
+            new Set(data.map(item => item.category).filter(Boolean))
+          );
+          setCategories(['All', ...uniqueCategories]);
+        }
+      } catch (error) {
+        console.error('Error fetching food items:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFoodItems();
+  }, []);
 
   const filteredItems = foodItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     
     return matchesSearch && matchesCategory;
@@ -91,19 +74,23 @@ const Menu = () => {
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (sortBy === 'price_low') return a.price - b.price;
     if (sortBy === 'price_high') return b.price - a.price;
-    if (sortBy === 'protein') return parseInt(b.protein) - parseInt(a.protein);
+    if (sortBy === 'protein') {
+      const proteinA = a.protein_grams || 0;
+      const proteinB = b.protein_grams || 0;
+      return proteinB - proteinA;
+    }
     
-    // Default: recommended (no specific sort)
-    return 0;
+    // Default: recommended (by creation date, newest first)
+    return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
   });
 
-  const handleAddToCart = (item: {id: number, name: string, price: number, image?: string}) => {
+  const handleAddToCart = (item: FoodItem) => {
     addItem({
       id: item.id,
       name: item.name,
       price: item.price,
       quantity: 1,
-      image: item.image
+      image: item.image_url
     });
   };
 
@@ -162,13 +149,17 @@ const Menu = () => {
         </div>
 
         {/* Menu Items Grid */}
-        {sortedItems.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-lg">Loading menu items...</p>
+          </div>
+        ) : sortedItems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {sortedItems.map((item) => (
               <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
                 <div className="h-48 overflow-hidden">
                   <img 
-                    src={item.image} 
+                    src={item.image_url} 
                     alt={item.name} 
                     className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                   />
@@ -178,34 +169,33 @@ const Menu = () => {
                     <div>
                       <h3 className="font-semibold text-xl">{item.name}</h3>
                       <Badge variant="outline" className="bg-gym-100 text-gym-800 mt-2">
-                        {item.category}
+                        {item.category || 'General'}
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <span className="text-lg font-bold text-gym-600">${item.price.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-gym-600">{formatPrice(item.price)}</span>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 mb-4">{item.description}</p>
+                  <p className="text-gray-600 mb-4">{item.description || 'No description available'}</p>
                   <div className="flex items-center space-x-4">
-                    <div className="bg-gym-50 px-3 py-1 rounded-full">
-                      <span className="text-sm font-medium text-gym-800">Protein: {item.protein}</span>
-                    </div>
-                    <div className="bg-gym-50 px-3 py-1 rounded-full">
-                      <span className="text-sm font-medium text-gym-800">Calories: {item.calories}</span>
-                    </div>
+                    {item.protein_grams && (
+                      <div className="bg-gym-50 px-3 py-1 rounded-full">
+                        <span className="text-sm font-medium text-gym-800">Protein: {item.protein_grams}g</span>
+                      </div>
+                    )}
+                    {item.calories && (
+                      <div className="bg-gym-50 px-3 py-1 rounded-full">
+                        <span className="text-sm font-medium text-gym-800">Calories: {item.calories}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button 
                     className="w-full bg-gym-600 hover:bg-gym-700 text-white"
-                    onClick={() => handleAddToCart({
-                      id: item.id, 
-                      name: item.name, 
-                      price: item.price,
-                      image: item.image
-                    })}
+                    onClick={() => handleAddToCart(item)}
                   >
                     <ShoppingCartIcon className="h-4 w-4 mr-2" />
                     Add to Cart
