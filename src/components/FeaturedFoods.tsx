@@ -16,12 +16,17 @@ const FeaturedFoods: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchFeaturedMeals();
+    let isMounted = true;
+    fetchFeaturedMeals(isMounted);
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const fetchFeaturedMeals = async () => {
+  const fetchFeaturedMeals = async (isMounted: boolean = true) => {
     try {
-      setIsLoading(true);
+      if (isMounted) setIsLoading(true);
       console.log('Fetching featured meals...');
       
       const { data, error } = await supabase
@@ -39,25 +44,29 @@ const FeaturedFoods: React.FC = () => {
       console.log('Featured meals data:', data);
 
       if (!data || data.length === 0) {
-        console.log('No featured meals found, creating default ones...');
-        await createDefaultMeals();
+        console.log('No featured meals found, checking if any meals exist...');
+        await handleNoMealsFound(isMounted);
         return;
       }
 
-      setFeaturedMeals(data as FoodItem[]);
+      if (isMounted) {
+        setFeaturedMeals(data as FoodItem[]);
+      }
     } catch (error) {
       console.error('Error in fetchFeaturedMeals:', error);
-      toast({
-        title: "Error loading meals",
-        description: "Could not load featured meals. Please try again later.",
-        variant: "destructive",
-      });
+      if (isMounted) {
+        toast({
+          title: "Error loading meals",
+          description: "Could not load featured meals. Please try again later.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted) setIsLoading(false);
     }
   };
 
-  const createDefaultMeals = async () => {
+  const handleNoMealsFound = async (isMounted: boolean = true) => {
     try {
       // Check if any meals exist first
       const { count, error: countError } = await supabase
@@ -70,57 +79,7 @@ const FeaturedFoods: React.FC = () => {
 
       if (count === 0) {
         console.log('Creating default meals...');
-        
-        const defaultMeals = [
-          {
-            name: "High Protein Chicken Bowl",
-            description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
-            price: 350,
-            image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
-            protein_grams: 35,
-            calories: 420,
-            category: "High Protein",
-            available: true
-          },
-          {
-            name: "Keto-Friendly Steak Plate",
-            description: "Grass-fed steak with avocado and roasted vegetables.",
-            price: 450,
-            image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-            protein_grams: 40,
-            calories: 550,
-            category: "Keto",
-            available: true
-          },
-          {
-            name: "Vegan Power Salad",
-            description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
-            price: 320,
-            image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-            protein_grams: 22,
-            calories: 380,
-            category: "Vegan",
-            available: true
-          }
-        ];
-
-        const { data: insertedData, error: insertError } = await supabase
-          .from('food_items')
-          .insert(defaultMeals)
-          .select();
-
-        if (insertError) {
-          throw insertError;
-        }
-
-        if (insertedData) {
-          console.log('Default meals created:', insertedData);
-          setFeaturedMeals(insertedData as FoodItem[]);
-          toast({
-            title: "Sample meals created",
-            description: "We've added some sample meals to get you started.",
-          });
-        }
+        await createDefaultMeals(isMounted);
       } else {
         // If meals exist but we got 0 from the featured query, just fetch any 3 available meals
         const { data: anyMeals, error: anyError } = await supabase
@@ -133,17 +92,76 @@ const FeaturedFoods: React.FC = () => {
           throw anyError;
         }
 
-        if (anyMeals) {
+        if (anyMeals && isMounted) {
           setFeaturedMeals(anyMeals as FoodItem[]);
         }
       }
     } catch (error) {
+      console.error('Error handling no meals found:', error);
+    }
+  };
+
+  const createDefaultMeals = async (isMounted: boolean = true) => {
+    try {
+      const defaultMeals = [
+        {
+          name: "High Protein Chicken Bowl",
+          description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
+          price: 350,
+          image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
+          protein_grams: 35,
+          calories: 420,
+          category: "High Protein",
+          available: true
+        },
+        {
+          name: "Keto-Friendly Steak Plate",
+          description: "Grass-fed steak with avocado and roasted vegetables.",
+          price: 450,
+          image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
+          protein_grams: 40,
+          calories: 550,
+          category: "Keto",
+          available: true
+        },
+        {
+          name: "Vegan Power Salad",
+          description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
+          price: 320,
+          image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
+          protein_grams: 22,
+          calories: 380,
+          category: "Vegan",
+          available: true
+        }
+      ];
+
+      const { data: insertedData, error: insertError } = await supabase
+        .from('food_items')
+        .insert(defaultMeals)
+        .select();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      if (insertedData && isMounted) {
+        console.log('Default meals created:', insertedData);
+        setFeaturedMeals(insertedData as FoodItem[]);
+        toast({
+          title: "Sample meals created",
+          description: "We've added some sample meals to get you started.",
+        });
+      }
+    } catch (error) {
       console.error('Error creating default meals:', error);
-      toast({
-        title: "Error",
-        description: "Could not load meals.",
-        variant: "destructive",
-      });
+      if (isMounted) {
+        toast({
+          title: "Error",
+          description: "Could not load meals.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

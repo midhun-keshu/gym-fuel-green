@@ -9,6 +9,8 @@ export function useAdminCheck() {
   const { toast } = useToast();
   
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAdminStatus = async () => {
       try {
         console.log('Checking admin status...');
@@ -18,8 +20,10 @@ export function useAdminCheck() {
         
         if (!session) {
           console.log('No active session found');
-          setIsAdmin(false);
-          setIsLoading(false);
+          if (isMounted) {
+            setIsAdmin(false);
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -33,25 +37,35 @@ export function useAdminCheck() {
           
         if (error) {
           console.error('Error fetching user roles:', error);
-          // Don't show error toast for normal users
-          setIsAdmin(false);
-          setIsLoading(false);
+          if (isMounted) {
+            setIsAdmin(false);
+            setIsLoading(false);
+          }
           return;
         }
         
         console.log('User roles:', userRoles);
         const isUserAdmin = userRoles?.some(ur => ur.role === 'admin') || false;
         console.log('User admin status:', isUserAdmin);
-        setIsAdmin(isUserAdmin);
+        
+        if (isMounted) {
+          setIsAdmin(isUserAdmin);
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error in admin check:', error);
-        setIsAdmin(false);
-      } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsAdmin(false);
+          setIsLoading(false);
+        }
       }
     };
     
     checkAdminStatus();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
   
   return { isAdmin, isLoading };

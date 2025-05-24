@@ -27,14 +27,19 @@ const AdminDashboard = () => {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   
   useEffect(() => {
+    let isMounted = true;
     if (isAdmin) {
-      loadDashboardData();
+      loadDashboardData(isMounted);
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [isAdmin]);
 
-  const loadDashboardData = async () => {
-    setDashboardLoading(true);
+  const loadDashboardData = async (isMounted: boolean = true) => {
     try {
+      if (isMounted) setDashboardLoading(true);
       console.log('Loading dashboard data...');
       
       // Fetch recent orders
@@ -55,7 +60,7 @@ const AdminDashboard = () => {
         console.error('Orders error:', ordersError);
       } else {
         console.log('Orders data:', ordersData);
-        setOrders(ordersData || []);
+        if (isMounted) setOrders(ordersData || []);
       }
 
       // Fetch user profiles
@@ -69,7 +74,7 @@ const AdminDashboard = () => {
         console.error('Profiles error:', profilesError);
       } else {
         console.log('Profiles data:', profilesData);
-        setUsers(profilesData || []);
+        if (isMounted) setUsers(profilesData || []);
       }
 
       // Fetch dashboard statistics
@@ -85,12 +90,14 @@ const AdminDashboard = () => {
         totalRevenue = ordersCount.data.reduce((sum, order) => sum + (order.total_amount || 0), 0);
       }
 
-      setDashboardStats({
-        totalOrders: ordersCount.count || 0,
-        totalUsers: usersCount.count || 0,
-        totalRevenue: totalRevenue,
-        totalFoodItems: foodItemsCount.count || 0
-      });
+      if (isMounted) {
+        setDashboardStats({
+          totalOrders: ordersCount.count || 0,
+          totalUsers: usersCount.count || 0,
+          totalRevenue: totalRevenue,
+          totalFoodItems: foodItemsCount.count || 0
+        });
+      }
 
       console.log('Dashboard stats:', {
         totalOrders: ordersCount.count || 0,
@@ -101,13 +108,15 @@ const AdminDashboard = () => {
 
     } catch (error) {
       console.error('Error loading admin dashboard data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data.",
-        variant: "destructive",
-      });
+      if (isMounted) {
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setDashboardLoading(false);
+      if (isMounted) setDashboardLoading(false);
     }
   };
 

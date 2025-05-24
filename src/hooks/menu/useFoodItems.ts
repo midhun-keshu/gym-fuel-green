@@ -11,18 +11,24 @@ export const useFoodItems = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchFoodItems();
+    let isMounted = true;
+    fetchFoodItems(isMounted);
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const fetchFoodItems = async () => {
+  const fetchFoodItems = async (isMounted: boolean = true) => {
     try {
-      setIsLoading(true);
+      if (isMounted) setIsLoading(true);
       console.log('Fetching food items...');
       
       const { data, error } = await supabase
         .from('food_items')
         .select('*')
-        .eq('available', true);
+        .eq('available', true)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching food items:', error);
@@ -33,31 +39,35 @@ export const useFoodItems = () => {
 
       if (!data || data.length === 0) {
         console.log('No food items found, creating default ones...');
-        await createDefaultFoodItems();
+        await createDefaultFoodItems(isMounted);
         return;
       }
 
-      setFoodItems(data as FoodItem[]);
-      
-      // Extract unique categories
-      const uniqueCategories = Array.from(
-        new Set(data.map(item => item.category).filter(Boolean))
-      );
-      setCategories(['All', ...uniqueCategories]);
+      if (isMounted) {
+        setFoodItems(data as FoodItem[]);
+        
+        // Extract unique categories
+        const uniqueCategories = Array.from(
+          new Set(data.map(item => item.category).filter(Boolean))
+        );
+        setCategories(['All', ...uniqueCategories]);
+      }
       
     } catch (error) {
       console.error('Error in fetchFoodItems:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load menu items. Please try again later.",
-        variant: "destructive",
-      });
+      if (isMounted) {
+        toast({
+          title: "Error",
+          description: "Failed to load menu items. Please try again later.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted) setIsLoading(false);
     }
   };
 
-  const createDefaultFoodItems = async () => {
+  const createDefaultFoodItems = async (isMounted: boolean = true) => {
     try {
       const defaultFoods = [
         {
@@ -152,7 +162,7 @@ export const useFoodItems = () => {
         throw insertError;
       }
 
-      if (insertedData) {
+      if (insertedData && isMounted) {
         console.log('Default food items created:', insertedData);
         setFoodItems(insertedData as FoodItem[]);
         
@@ -168,11 +178,13 @@ export const useFoodItems = () => {
       }
     } catch (error) {
       console.error('Error creating default food items:', error);
-      toast({
-        title: "Error",
-        description: "Could not load menu items.",
-        variant: "destructive",
-      });
+      if (isMounted) {
+        toast({
+          title: "Error",
+          description: "Could not load menu items.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
