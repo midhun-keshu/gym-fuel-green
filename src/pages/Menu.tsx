@@ -1,229 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ShoppingCartIcon, SearchIcon } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import React from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { useCart } from '@/contexts/CartContext';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { FoodItem } from '@/types/food';
+import MenuFilters from '@/components/menu/MenuFilters';
+import MenuGrid from '@/components/menu/MenuGrid';
+import LoadingState from '@/components/menu/LoadingState';
+import EmptyState from '@/components/menu/EmptyState';
+import { useFoodItems } from '@/hooks/menu/useFoodItems';
+import { useMenuFilters } from '@/hooks/menu/useMenuFilters';
 
 const Menu = () => {
-  const { addItem, formatPrice } = useCart();
-  const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('recommended');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [categories, setCategories] = useState<string[]>(['All']);
-  const [foodItems, setFoodItems] = useState<FoodItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    fetchFoodItems();
-  }, []);
-
-  const fetchFoodItems = async () => {
-    try {
-      setIsLoading(true);
-      console.log('Fetching food items...');
-      
-      const { data, error } = await supabase
-        .from('food_items')
-        .select('*')
-        .eq('available', true);
-
-      if (error) {
-        console.error('Error fetching food items:', error);
-        throw error;
-      }
-
-      console.log('Fetched food items:', data);
-
-      if (!data || data.length === 0) {
-        console.log('No food items found, creating default ones...');
-        await createDefaultFoodItems();
-        return;
-      }
-
-      setFoodItems(data as FoodItem[]);
-      
-      // Extract unique categories
-      const uniqueCategories = Array.from(
-        new Set(data.map(item => item.category).filter(Boolean))
-      );
-      setCategories(['All', ...uniqueCategories]);
-      
-    } catch (error) {
-      console.error('Error in fetchFoodItems:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load menu items. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const createDefaultFoodItems = async () => {
-    try {
-      const defaultFoods = [
-        {
-          name: "High Protein Chicken Bowl",
-          description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
-          price: 350,
-          image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
-          protein_grams: 35,
-          calories: 420,
-          category: "High Protein",
-          available: true
-        },
-        {
-          name: "Keto-Friendly Steak Plate",
-          description: "Grass-fed steak with avocado and roasted vegetables.",
-          price: 450,
-          image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-          protein_grams: 40,
-          calories: 550,
-          category: "Keto",
-          available: true
-        },
-        {
-          name: "Vegan Power Salad",
-          description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
-          price: 320,
-          image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-          protein_grams: 22,
-          calories: 380,
-          category: "Vegan",
-          available: true
-        },
-        {
-          name: "Protein Pancake Stack",
-          description: "Fluffy protein pancakes topped with fresh berries and honey.",
-          price: 280,
-          image_url: "https://images.unsplash.com/photo-1528207776546-365bb710ee93?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-          protein_grams: 25,
-          calories: 450,
-          category: "Breakfast",
-          available: true
-        },
-        {
-          name: "Salmon Superfood Bowl",
-          description: "Grilled salmon with kale, quinoa, avocado, and lemon dressing.",
-          price: 420,
-          image_url: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80",
-          protein_grams: 32,
-          calories: 490,
-          category: "Seafood",
-          available: true
-        },
-        {
-          name: "Turkey Wrap",
-          description: "Sliced turkey breast with fresh vegetables in a whole grain wrap.",
-          price: 290,
-          image_url: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1374&q=80",
-          protein_grams: 28,
-          calories: 380,
-          category: "Lunch",
-          available: true
-        },
-        {
-          name: "Protein Smoothie",
-          description: "Blended whey protein with banana, peanut butter, and almond milk.",
-          price: 220,
-          image_url: "https://images.unsplash.com/photo-1553530666-ba11a7da3888?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80",
-          protein_grams: 30,
-          calories: 320,
-          category: "Beverages",
-          available: true
-        },
-        {
-          name: "Muscle Builder Meal",
-          description: "Grilled chicken, sweet potato, and steamed broccoli with olive oil.",
-          price: 380,
-          image_url: "https://images.unsplash.com/photo-1497888329096-51c27beff665?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80",
-          protein_grams: 45,
-          calories: 520,
-          category: "High Protein",
-          available: true
-        }
-      ];
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('food_items')
-        .insert(defaultFoods)
-        .select();
-
-      if (insertError) {
-        console.error('Error inserting default food items:', insertError);
-        throw insertError;
-      }
-
-      if (insertedData) {
-        console.log('Default food items created:', insertedData);
-        setFoodItems(insertedData as FoodItem[]);
-        
-        const uniqueCategories = Array.from(
-          new Set(insertedData.map(item => item.category).filter(Boolean))
-        );
-        setCategories(['All', ...uniqueCategories]);
-        
-        toast({
-          title: "Sample menu items loaded",
-          description: "We've loaded some sample menu items for you.",
-        });
-      }
-    } catch (error) {
-      console.error('Error creating default food items:', error);
-      toast({
-        title: "Error",
-        description: "Could not load menu items.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const filteredItems = foodItems.filter(item => {
-    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
-
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    if (sortBy === 'price_low') return a.price - b.price;
-    if (sortBy === 'price_high') return b.price - a.price;
-    if (sortBy === 'protein') {
-      const proteinA = a.protein_grams || 0;
-      const proteinB = b.protein_grams || 0;
-      return proteinB - proteinA;
-    }
-    
-    return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
-  });
-
-  const handleAddToCart = (item: FoodItem) => {
-    addItem({
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      quantity: 1,
-      image: item.image_url
-    });
-    
-    toast({
-      title: "Added to cart",
-      description: `${item.name} has been added to your cart.`,
-      variant: "default",
-    });
-  };
+  const { foodItems, categories, isLoading } = useFoodItems();
+  const {
+    searchTerm,
+    setSearchTerm,
+    sortBy,
+    setSortBy,
+    selectedCategory,
+    setSelectedCategory,
+    sortedItems,
+    resetFilters
+  } = useMenuFilters(foodItems);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -239,117 +36,22 @@ const Menu = () => {
       </div>
       
       <div className="container mx-auto px-4 py-8">
-        {/* Search and Filter Section */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-grow">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <Input 
-              placeholder="Search menu items..." 
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          
-          <div className="flex gap-4">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recommended">Recommended</SelectItem>
-                <SelectItem value="price_low">Price: Low to High</SelectItem>
-                <SelectItem value="price_high">Price: High to Low</SelectItem>
-                <SelectItem value="protein">Highest Protein</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <MenuFilters
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+          sortBy={sortBy}
+          setSortBy={setSortBy}
+          categories={categories}
+        />
 
-        {/* Menu Items Grid */}
         {isLoading ? (
-          <div className="text-center py-12">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
-            <p className="mt-4 text-lg">Loading menu items...</p>
-          </div>
+          <LoadingState />
         ) : sortedItems.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {sortedItems.map((item) => (
-              <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                <div className="h-48 overflow-hidden">
-                  <img 
-                    src={item.image_url} 
-                    alt={item.name} 
-                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  />
-                </div>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-xl">{item.name}</h3>
-                      <Badge variant="outline" className="bg-gym-100 text-gym-800 mt-2">
-                        {item.category || 'General'}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-lg font-bold text-gym-600">{formatPrice(item.price)}</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4">{item.description || 'No description available'}</p>
-                  <div className="flex items-center space-x-4">
-                    {item.protein_grams && (
-                      <div className="bg-gym-50 px-3 py-1 rounded-full">
-                        <span className="text-sm font-medium text-gym-800">Protein: {item.protein_grams}g</span>
-                      </div>
-                    )}
-                    {item.calories && (
-                      <div className="bg-gym-50 px-3 py-1 rounded-full">
-                        <span className="text-sm font-medium text-gym-800">Calories: {item.calories}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full bg-gym-600 hover:bg-gym-700 text-white"
-                    onClick={() => handleAddToCart(item)}
-                  >
-                    <ShoppingCartIcon className="h-4 w-4 mr-2" />
-                    Add to Cart
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+          <MenuGrid items={sortedItems} />
         ) : (
-          <div className="text-center py-20">
-            <p className="text-gray-500 text-lg">No menu items match your search.</p>
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedCategory('All');
-              }}
-            >
-              Reset Filters
-            </Button>
-          </div>
+          <EmptyState onReset={resetFilters} />
         )}
       </div>
       <Footer />
