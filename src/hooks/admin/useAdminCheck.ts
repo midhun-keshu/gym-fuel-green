@@ -4,13 +4,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export function useAdminCheck() {
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   
   useEffect(() => {
     const checkAdminStatus = async () => {
       try {
+        console.log('Checking admin status...');
+        
         // Get the current session
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -21,16 +23,7 @@ export function useAdminCheck() {
           return;
         }
 
-        console.log('Session found, checking admin status');
-        
-        // When testing, you can set all authenticated users as admins
-        // Remove this in production or when user roles are properly set up
-        if (import.meta.env.DEV) {
-          console.log('Development mode: Setting user as admin for testing');
-          setIsAdmin(true);
-          setIsLoading(false);
-          return;
-        }
+        console.log('Session found for user:', session.user.email);
         
         // Check user roles
         const { data: userRoles, error } = await supabase
@@ -40,15 +33,13 @@ export function useAdminCheck() {
           
         if (error) {
           console.error('Error fetching user roles:', error);
-          toast({
-            title: "Error",
-            description: "Failed to check admin status.",
-            variant: "destructive",
-          });
+          // Don't show error toast for normal users
           setIsAdmin(false);
+          setIsLoading(false);
           return;
         }
         
+        console.log('User roles:', userRoles);
         const isUserAdmin = userRoles?.some(ur => ur.role === 'admin') || false;
         console.log('User admin status:', isUserAdmin);
         setIsAdmin(isUserAdmin);
@@ -61,7 +52,7 @@ export function useAdminCheck() {
     };
     
     checkAdminStatus();
-  }, [toast]);
+  }, []);
   
   return { isAdmin, isLoading };
 }

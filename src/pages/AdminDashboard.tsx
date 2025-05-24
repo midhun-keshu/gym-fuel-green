@@ -18,18 +18,26 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [orders, setOrders] = useState([]);
   const [users, setUsers] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalOrders: 0,
+    totalUsers: 0,
+    totalRevenue: 0,
+    totalFoodItems: 0
+  });
   const [dashboardLoading, setDashboardLoading] = useState(true);
   
   useEffect(() => {
     if (isAdmin) {
-      loadData();
+      loadDashboardData();
     }
   }, [isAdmin]);
 
-  const loadData = async () => {
+  const loadDashboardData = async () => {
     setDashboardLoading(true);
     try {
-      // Fetch recent orders with joined data
+      console.log('Loading dashboard data...');
+      
+      // Fetch recent orders
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -44,10 +52,11 @@ const AdminDashboard = () => {
         .limit(5);
 
       if (ordersError) {
-        throw ordersError;
+        console.error('Orders error:', ordersError);
+      } else {
+        console.log('Orders data:', ordersData);
+        setOrders(ordersData || []);
       }
-
-      setOrders(ordersData || []);
 
       // Fetch user profiles
       const { data: profilesData, error: profilesError } = await supabase
@@ -57,10 +66,39 @@ const AdminDashboard = () => {
         .limit(5);
 
       if (profilesError) {
-        throw profilesError;
+        console.error('Profiles error:', profilesError);
+      } else {
+        console.log('Profiles data:', profilesData);
+        setUsers(profilesData || []);
       }
 
-      setUsers(profilesData || []);
+      // Fetch dashboard statistics
+      const [ordersCount, usersCount, foodItemsCount] = await Promise.all([
+        supabase.from('orders').select('total_amount', { count: 'exact' }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('food_items').select('*', { count: 'exact', head: true })
+      ]);
+
+      // Calculate total revenue
+      let totalRevenue = 0;
+      if (ordersCount.data) {
+        totalRevenue = ordersCount.data.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+      }
+
+      setDashboardStats({
+        totalOrders: ordersCount.count || 0,
+        totalUsers: usersCount.count || 0,
+        totalRevenue: totalRevenue,
+        totalFoodItems: foodItemsCount.count || 0
+      });
+
+      console.log('Dashboard stats:', {
+        totalOrders: ordersCount.count || 0,
+        totalUsers: usersCount.count || 0,
+        totalRevenue: totalRevenue,
+        totalFoodItems: foodItemsCount.count || 0
+      });
+
     } catch (error) {
       console.error('Error loading admin dashboard data:', error);
       toast({
@@ -76,7 +114,7 @@ const AdminDashboard = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatPrice = (price) => {
@@ -127,122 +165,139 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-4 py-8 flex-grow">
         <div className="flex flex-col md:flex-row items-center justify-between mb-8">
           <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <div className="mt-4 md:mt-0 flex space-x-4">
+          <div className="mt-4 md:mt-0">
+            <p className="text-sm text-gray-600">
+              Admin credentials: <strong>admin@gymfood.com</strong> / <strong>admin123</strong>
+            </p>
+          </div>
+        </div>
+        
+        {/* Dashboard Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.totalOrders}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.totalUsers}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatPrice(dashboardStats.totalRevenue)}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Food Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.totalFoodItems}</div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Quick Access */}
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Link to="/admin/food-management">
-              <Button className="bg-gym-600 hover:bg-gym-700 transition-transform hover:scale-105">
+              <Button className="w-full bg-gym-600 hover:bg-gym-700">
                 <PlusIcon className="mr-2 h-4 w-4" />
-                Add Food Item
+                Manage Food Items
               </Button>
             </Link>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 gap-6">
-          <div className="transition-all duration-300 hover:shadow-lg bg-white p-6 rounded-lg shadow border border-gray-200">
-            <h2 className="text-xl font-semibold mb-4">Admin Quick Access</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Link to="/admin-dashboard" 
-                className="flex flex-col items-center p-4 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-all duration-300">
-                <span className="text-sm font-medium">Dashboard</span>
-              </Link>
-              
-              <Link to="/admin/food-management" 
-                className="flex flex-col items-center p-4 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-all duration-300">
-                <span className="text-sm font-medium">Food Items</span>
-              </Link>
-              
-              <Link to="/admin/orders" 
-                className="flex flex-col items-center p-4 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-all duration-300">
-                <span className="text-sm font-medium">Orders</span>
-              </Link>
-              
-              <Link to="/admin/users" 
-                className="flex flex-col items-center p-4 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-all duration-300">
-                <span className="text-sm font-medium">Users</span>
-              </Link>
-              
-              <Link to="/admin/analytics" 
-                className="flex flex-col items-center p-4 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-all duration-300">
-                <span className="text-sm font-medium">Analytics</span>
-              </Link>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Recent orders section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Orders</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-solid border-gym-600 border-r-transparent"></div>
+                </div>
+              ) : orders.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">{order.id.substring(0, 8)}...</TableCell>
+                        <TableCell>{formatDate(order.created_at)}</TableCell>
+                        <TableCell>{formatPrice(order.total_amount)}</TableCell>
+                        <TableCell>{getStatusBadgeVariant(order.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No orders found</p>
+              )}
+            </CardContent>
+          </Card>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Recent orders section */}
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dashboardLoading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-solid border-gym-600 border-r-transparent"></div>
-                  </div>
-                ) : orders.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
+          {/* Recent users section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dashboardLoading ? (
+                <div className="flex justify-center py-4">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-solid border-gym-600 border-r-transparent"></div>
+                </div>
+              ) : users.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Joined</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.id.substring(0, 8)}...</TableCell>
+                        <TableCell>{user.full_name || 'N/A'}</TableCell>
+                        <TableCell>{user.phone_number || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(user.created_at)}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.id.substring(0, 8)}...</TableCell>
-                          <TableCell>{formatDate(order.created_at)}</TableCell>
-                          <TableCell>{formatPrice(order.total_amount)}</TableCell>
-                          <TableCell>{getStatusBadgeVariant(order.status)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No orders found</p>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Recent users section */}
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle>Recent Users</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {dashboardLoading ? (
-                  <div className="flex justify-center py-4">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-solid border-gym-600 border-r-transparent"></div>
-                  </div>
-                ) : users.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Joined</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.id.substring(0, 8)}...</TableCell>
-                          <TableCell>{user.full_name || 'N/A'}</TableCell>
-                          <TableCell>{user.phone_number || 'N/A'}</TableCell>
-                          <TableCell>{formatDate(user.created_at)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No users found</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-gray-500 text-center py-4">No users found</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
       <Footer />

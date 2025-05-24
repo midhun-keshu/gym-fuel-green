@@ -16,49 +16,50 @@ const FeaturedFoods: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFeaturedMeals = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('food_items')
-          .select('*')
-          .eq('available', true)
-          .order('created_at', { ascending: false })
-          .limit(3);
-
-        if (error) {
-          console.error('Error fetching featured meals:', error);
-          toast({
-            title: "Error loading meals",
-            description: "Could not load featured meals. Please try again later.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (data && data.length > 0) {
-          console.log('Featured meals loaded:', data);
-          setFeaturedMeals(data as FoodItem[]);
-        } else {
-          // Insert some default meals if none exist
-          await addDefaultMealsIfNoneExist();
-        }
-      } catch (error) {
-        console.error('Error fetching featured meals:', error);
-        toast({
-          title: "Error loading meals",
-          description: "Could not load featured meals. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchFeaturedMeals();
-  }, [toast]);
+  }, []);
 
-  const addDefaultMealsIfNoneExist = async () => {
+  const fetchFeaturedMeals = async () => {
     try {
+      setIsLoading(true);
+      console.log('Fetching featured meals...');
+      
+      const { data, error } = await supabase
+        .from('food_items')
+        .select('*')
+        .eq('available', true)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.error('Error fetching featured meals:', error);
+        throw error;
+      }
+
+      console.log('Featured meals data:', data);
+
+      if (!data || data.length === 0) {
+        console.log('No featured meals found, creating default ones...');
+        await createDefaultMeals();
+        return;
+      }
+
+      setFeaturedMeals(data as FoodItem[]);
+    } catch (error) {
+      console.error('Error in fetchFeaturedMeals:', error);
+      toast({
+        title: "Error loading meals",
+        description: "Could not load featured meals. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createDefaultMeals = async () => {
+    try {
+      // Check if any meals exist first
       const { count, error: countError } = await supabase
         .from('food_items')
         .select('*', { count: 'exact', head: true });
@@ -68,7 +69,8 @@ const FeaturedFoods: React.FC = () => {
       }
 
       if (count === 0) {
-        // Default meals data
+        console.log('Creating default meals...');
+        
         const defaultMeals = [
           {
             name: "High Protein Chicken Bowl",
@@ -102,37 +104,46 @@ const FeaturedFoods: React.FC = () => {
           }
         ];
 
-        // Insert default meals
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from('food_items')
-          .insert(defaultMeals);
+          .insert(defaultMeals)
+          .select();
 
         if (insertError) {
           throw insertError;
         }
 
-        // Fetch the newly inserted meals
-        const { data: newMeals, error: fetchError } = await supabase
-          .from('food_items')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(3);
-
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        if (newMeals) {
-          setFeaturedMeals(newMeals as FoodItem[]);
-          console.log('Default meals created:', newMeals);
+        if (insertedData) {
+          console.log('Default meals created:', insertedData);
+          setFeaturedMeals(insertedData as FoodItem[]);
           toast({
             title: "Sample meals created",
             description: "We've added some sample meals to get you started.",
           });
         }
+      } else {
+        // If meals exist but we got 0 from the featured query, just fetch any 3 available meals
+        const { data: anyMeals, error: anyError } = await supabase
+          .from('food_items')
+          .select('*')
+          .eq('available', true)
+          .limit(3);
+
+        if (anyError) {
+          throw anyError;
+        }
+
+        if (anyMeals) {
+          setFeaturedMeals(anyMeals as FoodItem[]);
+        }
       }
     } catch (error) {
-      console.error('Error setting up default meals:', error);
+      console.error('Error creating default meals:', error);
+      toast({
+        title: "Error",
+        description: "Could not load meals.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -163,7 +174,8 @@ const FeaturedFoods: React.FC = () => {
       
       {isLoading ? (
         <div className="text-center py-10">
-          <p>Loading featured meals...</p>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
+          <p className="mt-4">Loading featured meals...</p>
         </div>
       ) : featuredMeals.length === 0 ? (
         <div className="text-center py-10">

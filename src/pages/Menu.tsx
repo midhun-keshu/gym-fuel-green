@@ -24,60 +24,54 @@ const Menu = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchFoodItems = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('food_items')
-          .select('*')
-          .eq('available', true);
-
-        if (error) {
-          console.error('Error fetching food items:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load menu items. Please try again later.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        if (data) {
-          console.log('Fetched food items:', data);
-          
-          if (data.length === 0) {
-            // If no food items exist, add default ones
-            await addDefaultFoodItems();
-            return;
-          }
-          
-          setFoodItems(data as FoodItem[]);
-          
-          // Extract unique categories
-          const uniqueCategories = Array.from(
-            new Set(data.map(item => item.category).filter(Boolean))
-          );
-          setCategories(['All', ...uniqueCategories]);
-        }
-      } catch (error) {
-        console.error('Error fetching food items:', error);
-        toast({
-          title: "Error",
-          description: "Something went wrong while loading the menu.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchFoodItems();
-  }, [toast]);
+  }, []);
 
-  const addDefaultFoodItems = async () => {
+  const fetchFoodItems = async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching food items...');
       
-      // Default meals data with a variety of foods
+      const { data, error } = await supabase
+        .from('food_items')
+        .select('*')
+        .eq('available', true);
+
+      if (error) {
+        console.error('Error fetching food items:', error);
+        throw error;
+      }
+
+      console.log('Fetched food items:', data);
+
+      if (!data || data.length === 0) {
+        console.log('No food items found, creating default ones...');
+        await createDefaultFoodItems();
+        return;
+      }
+
+      setFoodItems(data as FoodItem[]);
+      
+      // Extract unique categories
+      const uniqueCategories = Array.from(
+        new Set(data.map(item => item.category).filter(Boolean))
+      );
+      setCategories(['All', ...uniqueCategories]);
+      
+    } catch (error) {
+      console.error('Error in fetchFoodItems:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load menu items. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createDefaultFoodItems = async () => {
+    try {
       const defaultFoods = [
         {
           name: "High Protein Chicken Bowl",
@@ -161,48 +155,37 @@ const Menu = () => {
         }
       ];
 
-      // Insert default meals
-      const { error: insertError } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from('food_items')
-        .insert(defaultFoods);
+        .insert(defaultFoods)
+        .select();
 
       if (insertError) {
+        console.error('Error inserting default food items:', insertError);
         throw insertError;
       }
 
-      // Fetch the newly inserted meals
-      const { data: newFoods, error: fetchError } = await supabase
-        .from('food_items')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      if (newFoods) {
-        setFoodItems(newFoods as FoodItem[]);
+      if (insertedData) {
+        console.log('Default food items created:', insertedData);
+        setFoodItems(insertedData as FoodItem[]);
         
-        // Extract unique categories
         const uniqueCategories = Array.from(
-          new Set(newFoods.map(item => item.category).filter(Boolean))
+          new Set(insertedData.map(item => item.category).filter(Boolean))
         );
         setCategories(['All', ...uniqueCategories]);
         
         toast({
-          title: "Sample menu items created",
-          description: "We've added some sample menu items to get you started.",
+          title: "Sample menu items loaded",
+          description: "We've loaded some sample menu items for you.",
         });
       }
     } catch (error) {
-      console.error('Error setting up default food items:', error);
+      console.error('Error creating default food items:', error);
       toast({
         title: "Error",
-        description: "Could not create default menu items.",
+        description: "Could not load menu items.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -223,7 +206,6 @@ const Menu = () => {
       return proteinB - proteinA;
     }
     
-    // Default: recommended (by creation date, newest first)
     return new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime();
   });
 
