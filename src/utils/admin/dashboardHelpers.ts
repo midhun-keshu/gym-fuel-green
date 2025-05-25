@@ -1,5 +1,6 @@
 
 import { Badge } from '@/components/ui/badge';
+import React from 'react';
 
 export const formatDate = (dateString: string) => {
   if (!dateString) return 'N/A';
@@ -29,9 +30,5 @@ export const getStatusBadge = (status: string) => {
 
   const config = statusConfig[status as keyof typeof statusConfig] || { className: "", label: status };
   
-  return (
-    <Badge className={config.className}>
-      {config.label}
-    </Badge>
-  );
+  return React.createElement(Badge, { className: config.className }, config.label);
 };
