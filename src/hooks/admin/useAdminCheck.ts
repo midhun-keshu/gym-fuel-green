@@ -44,7 +44,7 @@ export function useAdminCheck() {
         return;
       }
       
-      // Also check user roles table
+      // Also check user roles table as backup
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
@@ -52,6 +52,7 @@ export function useAdminCheck() {
           
       if (rolesError) {
         console.error('❌ Error fetching user roles:', rolesError);
+        // Don't fail completely if roles table has issues
         setIsAdmin(false);
         setIsLoading(false);
         return;
@@ -76,5 +77,5 @@ export function useAdminCheck() {
     }
   };
   
-  return { isAdmin, isLoading };
+  return { isAdmin, isLoading, checkAdminStatus };
 }

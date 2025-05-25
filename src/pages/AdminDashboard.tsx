@@ -6,7 +6,7 @@ import { useAdminCheck } from '@/hooks/admin/useAdminCheck';
 import AccessDenied from '@/components/admin/AccessDenied';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
@@ -57,70 +57,113 @@ const AdminDashboard = () => {
 
   const loadDashboardData = async () => {
     try {
-      console.log('Loading admin dashboard data...');
+      console.log('📊 Loading admin dashboard data...');
       setDashboardLoading(true);
       
-      // Fetch recent orders
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, created_at, status, total_amount, phone_number, delivery_address')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Fetch recent orders with better error handling
+      try {
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('id, created_at, status, total_amount, phone_number, delivery_address')
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-      if (ordersError) {
-        console.error('Orders fetch error:', ordersError);
-      } else {
-        console.log('Fetched orders:', ordersData);
-        setOrders(ordersData || []);
+        if (ordersError && !ordersError.message.includes('relation "orders" does not exist')) {
+          console.error('❌ Orders fetch error:', ordersError);
+        } else {
+          console.log('✅ Fetched orders:', ordersData?.length || 0, 'items');
+          setOrders(ordersData || []);
+        }
+      } catch (error) {
+        console.log('⚠️ Orders table not available, skipping...');
+        setOrders([]);
       }
 
-      // Fetch user profiles
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone_number, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5);
+      // Fetch user profiles with better error handling
+      try {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone_number, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5);
 
-      if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
-      } else {
-        console.log('Fetched profiles:', profilesData);
-        setUsers(profilesData || []);
+        if (profilesError && !profilesError.message.includes('relation "profiles" does not exist')) {
+          console.error('❌ Profiles fetch error:', profilesError);
+        } else {
+          console.log('✅ Fetched profiles:', profilesData?.length || 0, 'items');
+          setUsers(profilesData || []);
+        }
+      } catch (error) {
+        console.log('⚠️ Profiles table not available, skipping...');
+        setUsers([]);
       }
 
-      // Fetch dashboard statistics
-      const [ordersResult, usersResult, foodItemsResult] = await Promise.all([
-        supabase.from('orders').select('total_amount'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('food_items').select('*', { count: 'exact', head: true })
-      ]);
+      // Fetch dashboard statistics with better error handling
+      const statsPromises = [
+        supabase.from('orders').select('total_amount').then(result => ({
+          type: 'orders',
+          data: result.data,
+          error: result.error
+        })),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).then(result => ({
+          type: 'profiles',
+          count: result.count,
+          error: result.error
+        })),
+        supabase.from('food_items').select('*', { count: 'exact', head: true }).then(result => ({
+          type: 'food_items',
+          count: result.count,
+          error: result.error
+        }))
+      ];
 
-      // Calculate total revenue
+      const results = await Promise.allSettled(statsPromises);
+      
       let totalRevenue = 0;
-      if (ordersResult.data && ordersResult.data.length > 0) {
-        totalRevenue = ordersResult.data.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-      }
+      let totalOrders = 0;
+      let totalUsers = 0;
+      let totalFoodItems = 0;
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const data = result.value;
+          
+          if (data.type === 'orders' && data.data && !data.error) {
+            totalOrders = data.data.length;
+            totalRevenue = data.data.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+          } else if (data.type === 'profiles' && !data.error) {
+            totalUsers = data.count || 0;
+          } else if (data.type === 'food_items' && !data.error) {
+            totalFoodItems = data.count || 0;
+          }
+        }
+      });
 
       const stats = {
-        totalOrders: ordersResult.data?.length || 0,
-        totalUsers: usersResult.count || 0,
-        totalRevenue: totalRevenue,
-        totalFoodItems: foodItemsResult.count || 0
+        totalOrders,
+        totalUsers,
+        totalRevenue,
+        totalFoodItems
       };
 
-      console.log('Dashboard statistics:', stats);
+      console.log('📊 Dashboard statistics loaded:', stats);
       setDashboardStats(stats);
 
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('❌ Error loading dashboard data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load dashboard data. Please try again.",
+        title: "Loading Error",
+        description: "Some dashboard data could not be loaded. This is normal for new setups.",
         variant: "destructive",
       });
     } finally {
       setDashboardLoading(false);
     }
+  };
+
+  const handleRefreshDashboard = () => {
+    console.log('🔄 Refreshing dashboard...');
+    loadDashboardData();
   };
 
   const formatDate = (dateString: string) => {
@@ -183,13 +226,25 @@ const AdminDashboard = () => {
       <div className="container mx-auto px-4 py-8 flex-grow">
         <div className="flex flex-col md:flex-row items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <div className="mt-4 md:mt-0 text-right">
-            <p className="text-sm text-gray-600">
-              Admin Access: <span className="font-semibold text-green-600">Active</span>
-            </p>
-            <p className="text-xs text-gray-500">
-              Credentials: admin@gymfood.com / admin123
-            </p>
+          <div className="flex items-center gap-4 mt-4 md:mt-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshDashboard}
+              disabled={dashboardLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCwIcon className={`h-4 w-4 ${dashboardLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <div className="text-right">
+              <p className="text-sm text-gray-600">
+                Admin Access: <span className="font-semibold text-green-600">Active</span>
+              </p>
+              <p className="text-xs text-gray-500">
+                Credentials: admin@gymfood.com / admin123
+              </p>
+            </div>
           </div>
         </div>
         

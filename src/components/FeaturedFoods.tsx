@@ -3,167 +3,25 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ShoppingCartIcon } from 'lucide-react';
+import { ShoppingCartIcon, RefreshCwIcon } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useFoodItems } from '@/hooks/menu/useFoodItems';
 import { useToast } from '@/hooks/use-toast';
 import { FoodItem } from '@/types/food';
 
 const FeaturedFoods: React.FC = () => {
   const { addItem, formatPrice } = useCart();
   const { toast } = useToast();
+  const { foodItems, isLoading, refetch } = useFoodItems();
   const [featuredMeals, setFeaturedMeals] = useState<FoodItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    fetchFeaturedMeals(isMounted);
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const fetchFeaturedMeals = async (isMounted: boolean = true) => {
-    try {
-      if (isMounted) setIsLoading(true);
-      console.log('Fetching featured meals...');
-      
-      const { data, error } = await supabase
-        .from('food_items')
-        .select('*')
-        .eq('available', true)
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (error) {
-        console.error('Error fetching featured meals:', error);
-        throw error;
-      }
-
-      console.log('Featured meals data:', data);
-
-      if (!data || data.length === 0) {
-        console.log('No featured meals found, checking if any meals exist...');
-        await handleNoMealsFound(isMounted);
-        return;
-      }
-
-      if (isMounted) {
-        setFeaturedMeals(data as FoodItem[]);
-      }
-    } catch (error) {
-      console.error('Error in fetchFeaturedMeals:', error);
-      if (isMounted) {
-        toast({
-          title: "Error loading meals",
-          description: "Could not load featured meals. Please try again later.",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      if (isMounted) setIsLoading(false);
+    if (foodItems.length > 0) {
+      // Take first 3 items as featured
+      setFeaturedMeals(foodItems.slice(0, 3));
+      console.log('✅ Featured meals set:', foodItems.slice(0, 3).length, 'items');
     }
-  };
-
-  const handleNoMealsFound = async (isMounted: boolean = true) => {
-    try {
-      // Check if any meals exist first
-      const { count, error: countError } = await supabase
-        .from('food_items')
-        .select('*', { count: 'exact', head: true });
-
-      if (countError) {
-        throw countError;
-      }
-
-      if (count === 0) {
-        console.log('Creating default meals...');
-        await createDefaultMeals(isMounted);
-      } else {
-        // If meals exist but we got 0 from the featured query, just fetch any 3 available meals
-        const { data: anyMeals, error: anyError } = await supabase
-          .from('food_items')
-          .select('*')
-          .eq('available', true)
-          .limit(3);
-
-        if (anyError) {
-          throw anyError;
-        }
-
-        if (anyMeals && isMounted) {
-          setFeaturedMeals(anyMeals as FoodItem[]);
-        }
-      }
-    } catch (error) {
-      console.error('Error handling no meals found:', error);
-    }
-  };
-
-  const createDefaultMeals = async (isMounted: boolean = true) => {
-    try {
-      const defaultMeals = [
-        {
-          name: "High Protein Chicken Bowl",
-          description: "Grilled chicken with quinoa, mixed vegetables, and a light vinaigrette.",
-          price: 350,
-          image_url: "https://images.unsplash.com/photo-1546793665-c74683f339c1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80",
-          protein_grams: 35,
-          calories: 420,
-          category: "High Protein",
-          available: true
-        },
-        {
-          name: "Keto-Friendly Steak Plate",
-          description: "Grass-fed steak with avocado and roasted vegetables.",
-          price: 450,
-          image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80",
-          protein_grams: 40,
-          calories: 550,
-          category: "Keto",
-          available: true
-        },
-        {
-          name: "Vegan Power Salad",
-          description: "Plant-based protein with mixed greens, nuts, and balsamic dressing.",
-          price: 320,
-          image_url: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80",
-          protein_grams: 22,
-          calories: 380,
-          category: "Vegan",
-          available: true
-        }
-      ];
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('food_items')
-        .insert(defaultMeals)
-        .select();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      if (insertedData && isMounted) {
-        console.log('Default meals created:', insertedData);
-        setFeaturedMeals(insertedData as FoodItem[]);
-        toast({
-          title: "Sample meals created",
-          description: "We've added some sample meals to get you started.",
-        });
-      }
-    } catch (error) {
-      console.error('Error creating default meals:', error);
-      if (isMounted) {
-        toast({
-          title: "Error",
-          description: "Could not load meals.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
+  }, [foodItems]);
 
   const handleAddToCart = (meal: FoodItem) => {
     addItem({
@@ -180,10 +38,27 @@ const FeaturedFoods: React.FC = () => {
     });
   };
 
+  const handleRefresh = () => {
+    console.log('🔄 Refreshing featured meals...');
+    refetch();
+  };
+
   return (
     <section className="py-12">
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Featured Meals</h2>
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <h2 className="text-3xl font-bold text-gray-900">Featured Meals</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCwIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
         <p className="text-gray-600 max-w-2xl mx-auto">
           Our chef-prepared meals are designed to provide optimal nutrition for your workout routine.
           Each meal is packed with protein and essential nutrients.
@@ -193,11 +68,15 @@ const FeaturedFoods: React.FC = () => {
       {isLoading ? (
         <div className="text-center py-10">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
-          <p className="mt-4">Loading featured meals...</p>
+          <p className="mt-4 text-lg">Loading featured meals...</p>
         </div>
       ) : featuredMeals.length === 0 ? (
         <div className="text-center py-10">
-          <p>No featured meals available at the moment.</p>
+          <p className="text-gray-500 mb-4">No featured meals available at the moment.</p>
+          <Button onClick={handleRefresh} variant="outline">
+            <RefreshCwIcon className="h-4 w-4 mr-2" />
+            Try Loading Again
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -205,7 +84,7 @@ const FeaturedFoods: React.FC = () => {
             <Card key={meal.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
               <div className="h-48 overflow-hidden">
                 <img 
-                  src={meal.image_url} 
+                  src={meal.image_url || '/placeholder.svg'} 
                   alt={meal.name} 
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                 />

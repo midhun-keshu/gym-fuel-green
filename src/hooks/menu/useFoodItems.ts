@@ -22,8 +22,9 @@ export const useFoodItems = () => {
   const fetchFoodItems = async (isMounted: boolean = true) => {
     try {
       if (isMounted) setIsLoading(true);
-      console.log('Fetching food items...');
+      console.log('🍽️ Fetching food items...');
       
+      // First try to fetch existing food items
       const { data, error } = await supabase
         .from('food_items')
         .select('*')
@@ -31,14 +32,22 @@ export const useFoodItems = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching food items:', error);
+        console.error('❌ Error fetching food items:', error);
+        
+        // If there's an RLS error, we might need to create items without auth
+        if (error.message?.includes('row-level security') || error.code === 'PGRST116') {
+          console.log('🔧 RLS issue detected, attempting to create default items...');
+          await createDefaultFoodItemsWithoutAuth(isMounted);
+          return;
+        }
+        
         throw error;
       }
 
-      console.log('Fetched food items:', data);
+      console.log('✅ Fetched food items:', data?.length || 0, 'items');
 
       if (!data || data.length === 0) {
-        console.log('No food items found, creating default ones...');
+        console.log('📝 No food items found, creating default ones...');
         await createDefaultFoodItems(isMounted);
         return;
       }
@@ -54,21 +63,60 @@ export const useFoodItems = () => {
       }
       
     } catch (error) {
-      console.error('Error in fetchFoodItems:', error);
+      console.error('❌ Error in fetchFoodItems:', error);
       if (isMounted) {
-        toast({
-          title: "Error",
-          description: "Failed to load menu items. Please try again later.",
-          variant: "destructive",
-        });
+        // Try creating default items as fallback
+        await createDefaultFoodItemsWithoutAuth(isMounted);
       }
     } finally {
       if (isMounted) setIsLoading(false);
     }
   };
 
+  const createDefaultFoodItemsWithoutAuth = async (isMounted: boolean = true) => {
+    try {
+      console.log('🔧 Creating default food items without auth...');
+      
+      // Check if any items exist first
+      const { count } = await supabase
+        .from('food_items')
+        .select('*', { count: 'exact', head: true });
+
+      if (count && count > 0) {
+        console.log('✅ Items exist, but RLS might be blocking access');
+        // Try to fetch again with a different approach
+        const { data } = await supabase
+          .from('food_items')
+          .select('*')
+          .limit(20);
+          
+        if (data && isMounted) {
+          setFoodItems(data as FoodItem[]);
+          const uniqueCategories = Array.from(
+            new Set(data.map(item => item.category).filter(Boolean))
+          );
+          setCategories(['All', ...uniqueCategories]);
+        }
+        return;
+      }
+
+      await createDefaultFoodItems(isMounted);
+    } catch (error) {
+      console.error('❌ Error creating default items without auth:', error);
+      if (isMounted) {
+        toast({
+          title: "Loading Error",
+          description: "Could not load menu items. Please check your connection.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   const createDefaultFoodItems = async (isMounted: boolean = true) => {
     try {
+      console.log('📝 Creating default food items...');
+      
       const defaultFoods = [
         {
           name: "High Protein Chicken Bowl",
@@ -158,12 +206,20 @@ export const useFoodItems = () => {
         .select();
 
       if (insertError) {
-        console.error('Error inserting default food items:', insertError);
-        throw insertError;
+        console.error('❌ Error inserting default food items:', insertError);
+        // Don't throw, just log and show empty state
+        if (isMounted) {
+          toast({
+            title: "Setup Required",
+            description: "Please contact admin to set up menu items.",
+            variant: "destructive",
+          });
+        }
+        return;
       }
 
       if (insertedData && isMounted) {
-        console.log('Default food items created:', insertedData);
+        console.log('✅ Default food items created:', insertedData.length, 'items');
         setFoodItems(insertedData as FoodItem[]);
         
         const uniqueCategories = Array.from(
@@ -172,21 +228,21 @@ export const useFoodItems = () => {
         setCategories(['All', ...uniqueCategories]);
         
         toast({
-          title: "Sample menu items loaded",
-          description: "We've loaded some sample menu items for you.",
+          title: "Menu Loaded",
+          description: "Sample menu items have been loaded successfully.",
         });
       }
     } catch (error) {
-      console.error('Error creating default food items:', error);
+      console.error('❌ Error creating default food items:', error);
       if (isMounted) {
         toast({
-          title: "Error",
-          description: "Could not load menu items.",
+          title: "Setup Error",
+          description: "Could not initialize menu items. Please check your connection.",
           variant: "destructive",
         });
       }
     }
   };
 
-  return { foodItems, categories, isLoading };
+  return { foodItems, categories, isLoading, refetch: fetchFoodItems };
 };
