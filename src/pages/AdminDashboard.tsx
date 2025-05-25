@@ -99,45 +99,53 @@ const AdminDashboard = () => {
       }
 
       // Fetch dashboard statistics with better error handling
-      const statsPromises = [
-        supabase.from('orders').select('total_amount').then(result => ({
-          type: 'orders',
-          data: result.data,
-          error: result.error
-        })),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).then(result => ({
-          type: 'profiles',
-          count: result.count,
-          error: result.error
-        })),
-        supabase.from('food_items').select('*', { count: 'exact', head: true }).then(result => ({
-          type: 'food_items',
-          count: result.count,
-          error: result.error
-        }))
-      ];
-
-      const results = await Promise.allSettled(statsPromises);
-      
       let totalRevenue = 0;
       let totalOrders = 0;
       let totalUsers = 0;
       let totalFoodItems = 0;
 
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          const data = result.value;
-          
-          if (data.type === 'orders' && data.data && !data.error) {
-            totalOrders = data.data.length;
-            totalRevenue = data.data.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-          } else if (data.type === 'profiles' && !data.error) {
-            totalUsers = data.count || 0;
-          } else if (data.type === 'food_items' && !data.error) {
-            totalFoodItems = data.count || 0;
-          }
+      try {
+        // Get orders data
+        const { data: ordersStatsData, error: ordersStatsError } = await supabase
+          .from('orders')
+          .select('total_amount');
+
+        if (!ordersStatsError && ordersStatsData) {
+          totalOrders = ordersStatsData.length;
+          totalRevenue = ordersStatsData.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+          console.log('✅ Orders stats:', { totalOrders, totalRevenue });
         }
-      });
+      } catch (error) {
+        console.log('⚠️ Orders stats not available');
+      }
+
+      try {
+        // Get users count
+        const { count: usersCount, error: usersCountError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        if (!usersCountError) {
+          totalUsers = usersCount || 0;
+          console.log('✅ Users count:', totalUsers);
+        }
+      } catch (error) {
+        console.log('⚠️ Users count not available');
+      }
+
+      try {
+        // Get food items count
+        const { count: foodItemsCount, error: foodItemsCountError } = await supabase
+          .from('food_items')
+          .select('*', { count: 'exact', head: true });
+
+        if (!foodItemsCountError) {
+          totalFoodItems = foodItemsCount || 0;
+          console.log('✅ Food items count:', totalFoodItems);
+        }
+      } catch (error) {
+        console.log('⚠️ Food items count not available');
+      }
 
       const stats = {
         totalOrders,
