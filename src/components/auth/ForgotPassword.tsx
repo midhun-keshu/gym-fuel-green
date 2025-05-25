@@ -9,58 +9,45 @@ import { supabase } from "@/integrations/supabase/client";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ArrowLeftIcon } from "lucide-react";
 
-type ForgotPasswordStep = 'phone' | 'otp' | 'new-password';
+type ForgotPasswordStep = 'email' | 'otp' | 'new-password';
 
 const ForgotPassword: React.FC = () => {
   const { toast } = useToast();
-  const [step, setStep] = useState<ForgotPasswordStep>('phone');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [step, setStep] = useState<ForgotPasswordStep>('email');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [generatedOtp, setGeneratedOtp] = useState('');
 
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Format phone number if needed
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+      // Send password reset email with OTP
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
       
-      // Check if the phone number exists in the profiles table
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('phone_number')
-        .eq('phone_number', formattedPhone)
-        .single();
-      
-      if (error || !data) {
+      if (error) {
         toast({
-          title: "Phone number not found",
-          description: "This phone number isn't registered in our system.",
+          title: "Error",
+          description: error.message,
           variant: "destructive",
         });
       } else {
-        // Generate a 6-digit OTP
-        const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-        setGeneratedOtp(generatedCode);
-
-        // In a real app, this would send an SMS with OTP
-        // For demo purposes, we'll show the OTP in a toast
         toast({
-          title: "OTP Generated",
-          description: `For demonstration purposes, use this OTP: ${generatedCode}`,
+          title: "Reset Code Sent",
+          description: "Please check your email for the password reset code.",
         });
-        
         setStep('otp');
       }
     } catch (error) {
-      console.error('Error sending OTP:', error);
+      console.error('Error sending reset email:', error);
       toast({
         title: "Error",
-        description: "Failed to send verification code. Please try again.",
+        description: "Failed to send reset email. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -71,17 +58,16 @@ const ForgotPassword: React.FC = () => {
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate the OTP against what was generated
-    if (otp === generatedOtp) {
+    if (otp.length === 6) {
       toast({
-        title: "OTP Verified",
-        description: "Your code has been verified. Please set a new password.",
+        title: "Code Verified",
+        description: "Your verification code has been confirmed. Please set a new password.",
       });
       setStep('new-password');
     } else {
       toast({
         title: "Invalid Code",
-        description: "The verification code is incorrect. Please try again.",
+        description: "Please enter the complete 6-digit verification code.",
         variant: "destructive",
       });
     }
@@ -112,24 +98,13 @@ const ForgotPassword: React.FC = () => {
     }
 
     try {
-      // Look up the user by phone number
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone_number', phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`)
-        .single();
-
-      if (profileError || !profileData) {
-        throw new Error('Could not find user profile');
-      }
-
-      // Use Supabase auth update user API to update the password
-      const { error: updateError } = await supabase.auth.updateUser({
+      // Update password using the OTP
+      const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (updateError) {
-        throw updateError;
+      if (error) {
+        throw error;
       }
       
       toast({
@@ -137,18 +112,18 @@ const ForgotPassword: React.FC = () => {
         description: "Your password has been reset successfully. You can now login with your new password.",
       });
       
-      // Reset the form and go back to phone step
-      setPhoneNumber('');
+      // Reset the form and go back to email step
+      setEmail('');
       setOtp('');
       setNewPassword('');
       setConfirmPassword('');
-      setStep('phone');
+      setStep('email');
       
     } catch (error) {
       console.error('Error resetting password:', error);
       toast({
         title: "Error",
-        description: "Failed to reset your password. Please try again.",
+        description: "Failed to reset your password. Please try again or request a new reset code.",
         variant: "destructive",
       });
     } finally {
@@ -158,17 +133,18 @@ const ForgotPassword: React.FC = () => {
 
   const renderStepContent = () => {
     switch (step) {
-      case 'phone':
+      case 'email':
         return (
-          <form onSubmit={handlePhoneSubmit}>
+          <form onSubmit={handleEmailSubmit}>
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="email">Email Address</Label>
                 <Input
-                  id="phone"
-                  placeholder="+1234567890"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
@@ -186,7 +162,7 @@ const ForgotPassword: React.FC = () => {
               <div className="grid gap-2 text-center">
                 <Label htmlFor="otp">Enter Verification Code</Label>
                 <p className="text-sm text-muted-foreground">
-                  We've sent a 6-digit code to {phoneNumber}
+                  We've sent a 6-digit code to {email}
                 </p>
                 <div className="flex justify-center py-4">
                   <InputOTP 
@@ -210,7 +186,7 @@ const ForgotPassword: React.FC = () => {
                 type="button" 
                 variant="outline" 
                 className="w-full"
-                onClick={() => setStep('phone')}
+                onClick={() => setStep('email')}
               >
                 <ArrowLeftIcon className="h-4 w-4 mr-2" />
                 Back
@@ -269,8 +245,8 @@ const ForgotPassword: React.FC = () => {
       <CardHeader>
         <CardTitle>Reset Your Password</CardTitle>
         <CardDescription>
-          {step === 'phone' && "Enter your phone number to receive a verification code."}
-          {step === 'otp' && "Enter the verification code sent to your phone."}
+          {step === 'email' && "Enter your email address to receive a verification code."}
+          {step === 'otp' && "Enter the verification code sent to your email."}
           {step === 'new-password' && "Create a new password for your account."}
         </CardDescription>
       </CardHeader>
