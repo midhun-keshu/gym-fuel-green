@@ -39,36 +39,67 @@ export const useDashboardData = (isAdmin: boolean) => {
   const [dashboardLoading, setDashboardLoading] = useState(false);
 
   const loadDashboardData = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin) {
+      console.log('❌ User is not admin, skipping dashboard data load');
+      return;
+    }
     
     try {
       console.log('📊 Loading admin dashboard data...');
       setDashboardLoading(true);
       
-      let totalRevenue = 0;
-      let totalOrders = 0;
-      let totalUsers = 0;
       let totalFoodItems = 0;
 
-      // Try to get food items count (this should work)
+      // Get food items count (this should work with the new RLS policy)
       try {
         const { count: foodItemsCount, error: foodItemsCountError } = await supabase
           .from('food_items')
           .select('*', { count: 'exact', head: true });
 
-        if (!foodItemsCountError) {
-          totalFoodItems = foodItemsCount || 0;
+        if (!foodItemsCountError && foodItemsCount !== null) {
+          totalFoodItems = foodItemsCount;
           console.log('✅ Food items count:', totalFoodItems);
+        } else {
+          console.log('⚠️ Could not get food items count:', foodItemsCountError);
         }
       } catch (error) {
-        console.log('⚠️ Food items count not available');
+        console.log('⚠️ Food items count error:', error);
       }
 
-      // Set basic stats (other tables might not exist yet)
+      // Try to get orders count
+      let totalOrders = 0;
+      try {
+        const { count: ordersCount, error: ordersError } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true });
+
+        if (!ordersError && ordersCount !== null) {
+          totalOrders = ordersCount;
+          console.log('✅ Orders count:', totalOrders);
+        }
+      } catch (error) {
+        console.log('⚠️ Orders count not available:', error);
+      }
+
+      // Try to get users count
+      let totalUsers = 0;
+      try {
+        const { count: usersCount, error: usersError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        if (!usersError && usersCount !== null) {
+          totalUsers = usersCount;
+          console.log('✅ Users count:', totalUsers);
+        }
+      } catch (error) {
+        console.log('⚠️ Users count not available:', error);
+      }
+
       const stats = {
-        totalOrders: 0,
-        totalUsers: 0,
-        totalRevenue: 0,
+        totalOrders,
+        totalUsers,
+        totalRevenue: 0, // Will calculate this when we have order data
         totalFoodItems
       };
 
@@ -79,6 +110,14 @@ export const useDashboardData = (isAdmin: boolean) => {
 
     } catch (error) {
       console.error('❌ Error loading dashboard data:', error);
+      
+      // Set default stats on error
+      setDashboardStats({
+        totalOrders: 0,
+        totalUsers: 0,
+        totalRevenue: 0,
+        totalFoodItems: 0
+      });
     } finally {
       setDashboardLoading(false);
     }
@@ -87,6 +126,17 @@ export const useDashboardData = (isAdmin: boolean) => {
   useEffect(() => {
     if (isAdmin) {
       loadDashboardData();
+    } else {
+      // Reset data when not admin
+      setDashboardStats({
+        totalOrders: 0,
+        totalUsers: 0,
+        totalRevenue: 0,
+        totalFoodItems: 0
+      });
+      setOrders([]);
+      setUsers([]);
+      setDashboardLoading(false);
     }
   }, [isAdmin]);
 

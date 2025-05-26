@@ -53,10 +53,22 @@ export function useAdminCheck() {
         return;
       }
       
-      // For now, skip the user_roles table check due to RLS issues
-      // Just use email-based admin check
-      console.log('🔑 Using email-based admin check only');
-      setIsAdmin(false);
+      // Use the new security definer function to check admin role
+      try {
+        const { data: roleData, error: roleError } = await supabase
+          .rpc('get_user_role', { user_uuid: session.user.id });
+        
+        if (!roleError && roleData === 'admin') {
+          console.log('✅ Admin role confirmed via database');
+          setIsAdmin(true);
+        } else {
+          console.log('❌ User is not admin');
+          setIsAdmin(false);
+        }
+      } catch (error) {
+        console.log('⚠️ Role check failed, falling back to email check');
+        setIsAdmin(false);
+      }
       
     } catch (error) {
       console.error('❌ Error in admin check:', error);
