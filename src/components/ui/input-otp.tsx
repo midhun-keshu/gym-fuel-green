@@ -35,22 +35,59 @@ const InputOTPSlot = React.forwardRef<
 >(({ index, className, ...props }, ref) => {
   const inputOTPContext = React.useContext(OTPInputContext)
   
-  // Add safety checks to prevent undefined errors
-  const slots = inputOTPContext?.slots || []
-  const slot = slots[index] || { char: null, hasFakeCaret: false, isActive: false }
+  // Enhanced safety checks to prevent crashes
+  if (!inputOTPContext) {
+    console.warn('InputOTPSlot: OTPInputContext is not available')
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+          className
+        )}
+        {...props}
+      >
+        {/* Empty slot when context is not available */}
+      </div>
+    )
+  }
+
+  const slots = inputOTPContext.slots || []
+  
+  // Check if index is valid and slot exists
+  if (index < 0 || index >= slots.length || !slots[index]) {
+    console.warn(`InputOTPSlot: Invalid index ${index} or slot not found`)
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+          className
+        )}
+        {...props}
+      >
+        {/* Empty slot for invalid index */}
+      </div>
+    )
+  }
+
+  const slot = slots[index]
+  const char = slot?.char || null
+  const hasFakeCaret = slot?.hasFakeCaret || false
+  const isActive = slot?.isActive || false
 
   return (
     <div
       ref={ref}
       className={cn(
         "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-        slot.isActive && "z-10 ring-2 ring-ring ring-offset-background",
+        isActive && "z-10 ring-2 ring-ring ring-offset-background",
         className
       )}
       {...props}
     >
-      {slot.char}
-      {slot.hasFakeCaret && (
+      {char}
+      {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="h-4 w-px animate-caret-blink bg-foreground duration-1000" />
         </div>
