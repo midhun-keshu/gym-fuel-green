@@ -75,6 +75,7 @@ const FeaturedFoods: React.FC = () => {
         <div className="text-center py-10">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gym-600 border-r-transparent"></div>
           <p className="mt-4 text-lg">Loading featured meals...</p>
+          <p className="mt-2 text-sm text-gray-500">Preparing our delicious menu for you</p>
         </div>
       ) : featuredMeals.length === 0 ? (
         <div className="text-center py-10">

@@ -53,25 +53,10 @@ export function useAdminCheck() {
         return;
       }
       
-      // Check user roles table
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id);
-          
-      if (rolesError) {
-        console.error('❌ Error fetching user roles:', rolesError);
-        // If roles table doesn't exist or has issues, don't fail completely
-        setIsAdmin(false);
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('📋 User roles:', userRoles);
-      const hasAdminRole = userRoles?.some(ur => ur.role === 'admin') || false;
-      
-      console.log('🔑 Final admin status:', hasAdminRole);
-      setIsAdmin(hasAdminRole);
+      // For now, skip the user_roles table check due to RLS issues
+      // Just use email-based admin check
+      console.log('🔑 Using email-based admin check only');
+      setIsAdmin(false);
       
     } catch (error) {
       console.error('❌ Error in admin check:', error);
