@@ -17,9 +17,10 @@ const FeaturedFoods: React.FC = () => {
 
   useEffect(() => {
     if (foodItems.length > 0) {
-      // Take first 3 items as featured
-      setFeaturedMeals(foodItems.slice(0, 3));
-      console.log('✅ Featured meals set:', foodItems.slice(0, 3).length, 'items');
+      // Take first 3 available items as featured
+      const availableItems = foodItems.filter(item => item.available !== false);
+      setFeaturedMeals(availableItems.slice(0, 3));
+      console.log('✅ Featured meals set:', availableItems.slice(0, 3).length, 'items');
     }
   }, [foodItems]);
 
@@ -29,7 +30,7 @@ const FeaturedFoods: React.FC = () => {
       name: meal.name,
       price: meal.price,
       quantity: 1,
-      image: meal.image_url
+      image: meal.image_url || undefined
     });
     
     toast({
@@ -41,6 +42,11 @@ const FeaturedFoods: React.FC = () => {
   const handleRefresh = () => {
     console.log('🔄 Refreshing featured meals...');
     refetch();
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.src = '/placeholder.svg';
   };
 
   return (
@@ -87,6 +93,7 @@ const FeaturedFoods: React.FC = () => {
                   src={meal.image_url || '/placeholder.svg'} 
                   alt={meal.name} 
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  onError={handleImageError}
                 />
               </div>
               <CardHeader>
@@ -103,7 +110,7 @@ const FeaturedFoods: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600 mb-4">{meal.description}</p>
+                <p className="text-gray-600 mb-4">{meal.description || 'Delicious and nutritious meal'}</p>
                 <div className="flex items-center space-x-4">
                   {meal.protein_grams && (
                     <div className="bg-gym-50 px-3 py-1 rounded-full">

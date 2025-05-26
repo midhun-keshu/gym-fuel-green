@@ -10,6 +10,15 @@ export function useAdminCheck() {
   
   useEffect(() => {
     checkAdminStatus();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        checkAdminStatus();
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
   
   const checkAdminStatus = async () => {
@@ -36,7 +45,7 @@ export function useAdminCheck() {
 
       console.log('✅ Session found for user:', session.user.email);
       
-      // Check if this is the admin user by email
+      // Check if this is the admin user by email (hardcoded admin)
       if (session.user.email === 'admin@gymfood.com') {
         console.log('✅ Admin user identified by email');
         setIsAdmin(true);
@@ -44,7 +53,7 @@ export function useAdminCheck() {
         return;
       }
       
-      // Also check user roles table as backup
+      // Check user roles table
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
@@ -52,7 +61,7 @@ export function useAdminCheck() {
           
       if (rolesError) {
         console.error('❌ Error fetching user roles:', rolesError);
-        // Don't fail completely if roles table has issues
+        // If roles table doesn't exist or has issues, don't fail completely
         setIsAdmin(false);
         setIsLoading(false);
         return;
@@ -67,11 +76,6 @@ export function useAdminCheck() {
     } catch (error) {
       console.error('❌ Error in admin check:', error);
       setIsAdmin(false);
-      toast({
-        title: "Error",
-        description: "Failed to verify admin status. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }

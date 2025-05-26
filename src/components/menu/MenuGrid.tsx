@@ -22,7 +22,7 @@ const MenuGrid: React.FC<MenuGridProps> = ({ items }) => {
       name: item.name,
       price: item.price,
       quantity: 1,
-      image: item.image_url
+      image: item.image_url || undefined
     });
     
     toast({
@@ -32,15 +32,29 @@ const MenuGrid: React.FC<MenuGridProps> = ({ items }) => {
     });
   };
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.src = '/placeholder.svg';
+  };
+
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">No menu items available at the moment.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
       {items.map((item) => (
         <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300">
           <div className="h-48 overflow-hidden">
             <img 
-              src={item.image_url} 
+              src={item.image_url || '/placeholder.svg'} 
               alt={item.name} 
               className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+              onError={handleImageError}
             />
           </div>
           <CardHeader>
@@ -57,7 +71,7 @@ const MenuGrid: React.FC<MenuGridProps> = ({ items }) => {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-600 mb-4">{item.description || 'No description available'}</p>
+            <p className="text-gray-600 mb-4">{item.description || 'Delicious and nutritious meal'}</p>
             <div className="flex items-center space-x-4">
               {item.protein_grams && (
                 <div className="bg-gym-50 px-3 py-1 rounded-full">

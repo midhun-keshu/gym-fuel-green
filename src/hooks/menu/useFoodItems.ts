@@ -25,23 +25,19 @@ export const useFoodItems = () => {
       if (isMounted) setIsLoading(true);
       console.log('🍽️ Fetching food items...');
       
+      // First try to fetch from database
       const { data, error } = await supabase
         .from('food_items')
         .select('*')
-        .eq('available', true)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('❌ Error fetching food items:', error);
         
-        // If no items exist, try to create defaults
-        if (error.code === 'PGRST116' || (data && data.length === 0)) {
-          console.log('📝 No food items found, creating default ones...');
-          await handleCreateDefaults(isMounted);
-          return;
-        }
-        
-        throw error;
+        // If no items exist or there's an error, try to create defaults
+        console.log('📝 Creating default food items due to error...');
+        await handleCreateDefaults(isMounted);
+        return;
       }
 
       console.log('✅ Fetched food items:', data?.length || 0, 'items');
@@ -60,11 +56,8 @@ export const useFoodItems = () => {
     } catch (error) {
       console.error('❌ Error in fetchFoodItems:', error);
       if (isMounted) {
-        toast({
-          title: "Loading Error",
-          description: "Could not load menu items. Please check your connection.",
-          variant: "destructive",
-        });
+        // Try to create defaults as fallback
+        await handleCreateDefaults(isMounted);
       }
     } finally {
       if (isMounted) setIsLoading(false);
