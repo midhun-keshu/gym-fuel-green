@@ -22,9 +22,21 @@ export const useFoodItems = () => {
   const fetchFoodItems = async (isMounted: boolean = true) => {
     try {
       if (isMounted) setIsLoading(true);
-      console.log('🍽️ Fetching food items from database...');
+      console.log('🍽️ Starting to fetch food items from database...');
       
-      // Fetch from database with the new RLS policy that allows public read
+      // First check if we have a valid connection
+      const { data: healthCheck, error: healthError } = await supabase
+        .from('food_items')
+        .select('count(*)', { count: 'exact', head: true });
+
+      if (healthError) {
+        console.error('❌ Database connection failed:', healthError);
+        throw new Error(`Database connection failed: ${healthError.message}`);
+      }
+
+      console.log('✅ Database connection successful, found', healthCheck || 0, 'total items');
+
+      // Now fetch the actual data
       const { data, error } = await supabase
         .from('food_items')
         .select('*')
@@ -33,15 +45,15 @@ export const useFoodItems = () => {
 
       if (error) {
         console.error('❌ Error fetching food items:', error);
-        throw error;
+        throw new Error(`Failed to fetch food items: ${error.message}`);
       }
 
       console.log('✅ Successfully fetched food items:', data?.length || 0, 'items');
+      console.log('📋 Food items data:', data);
 
       if (!data || data.length === 0) {
-        console.log('📝 No food items found in database');
+        console.log('📝 No food items found in database, using fallback items');
         
-        // Set fallback items if no data is found
         const fallbackItems: FoodItem[] = [
           {
             id: 'fallback-1',
@@ -84,11 +96,7 @@ export const useFoodItems = () => {
         if (isMounted) {
           setFoodItems(fallbackItems);
           updateCategories(fallbackItems);
-          
-          toast({
-            title: "Menu Loaded",
-            description: "Sample menu items are being displayed.",
-          });
+          console.log('✅ Fallback items set successfully');
         }
         return;
       }
@@ -96,20 +104,25 @@ export const useFoodItems = () => {
       if (isMounted) {
         setFoodItems(data as FoodItem[]);
         updateCategories(data);
-        console.log('✅ Food items state updated successfully');
+        console.log('✅ Food items state updated successfully with', data.length, 'items');
+        
+        toast({
+          title: "Menu Loaded",
+          description: `Successfully loaded ${data.length} menu items.`,
+        });
       }
       
     } catch (error) {
-      console.error('❌ Error in fetchFoodItems:', error);
+      console.error('❌ Critical error in fetchFoodItems:', error);
       
       if (isMounted) {
-        // Always show fallback items on error
-        const fallbackItems: FoodItem[] = [
+        // Set fallback items on any error
+        const errorFallbackItems: FoodItem[] = [
           {
             id: 'error-fallback-1',
             name: 'Protein Bowl',
             description: 'High protein meal with chicken and vegetables',
-            price: 299,
+            price: 1299,
             image_url: '/placeholder.svg',
             category: 'Main Course',
             protein_grams: 35,
@@ -121,7 +134,7 @@ export const useFoodItems = () => {
             id: 'error-fallback-2',
             name: 'Energy Smoothie',
             description: 'Post-workout protein smoothie',
-            price: 199,
+            price: 899,
             image_url: '/placeholder.svg',
             category: 'Beverages',
             protein_grams: 25,
@@ -131,17 +144,21 @@ export const useFoodItems = () => {
           }
         ];
         
-        setFoodItems(fallbackItems);
-        updateCategories(fallbackItems);
+        setFoodItems(errorFallbackItems);
+        updateCategories(errorFallbackItems);
+        console.log('✅ Error fallback items set');
         
         toast({
-          title: "Menu Loaded",
-          description: "Basic menu items are available. Database connection may be limited.",
+          title: "Using Sample Menu",
+          description: "Sample menu items are being displayed while we resolve database connectivity.",
           variant: "default",
         });
       }
     } finally {
-      if (isMounted) setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+        console.log('✅ Loading state set to false');
+      }
     }
   };
 
@@ -150,6 +167,7 @@ export const useFoodItems = () => {
       new Set(items.map(item => item.category).filter(Boolean))
     );
     setCategories(['All', ...uniqueCategories]);
+    console.log('✅ Categories updated:', ['All', ...uniqueCategories]);
   };
 
   return { foodItems, categories, isLoading, refetch: fetchFoodItems };
