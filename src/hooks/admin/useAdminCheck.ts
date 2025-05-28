@@ -53,12 +53,12 @@ export function useAdminCheck() {
         return;
       }
       
-      // Use the new security definer function to check admin role
+      // Check admin role using the is_admin function (which exists in the database)
       try {
-        const { data: roleData, error: roleError } = await supabase
-          .rpc('get_user_role', { user_uuid: session.user.id });
+        const { data: isAdminResult, error: roleError } = await supabase
+          .rpc('is_admin', { uid: session.user.id });
         
-        if (!roleError && roleData === 'admin') {
+        if (!roleError && isAdminResult === true) {
           console.log('✅ Admin role confirmed via database');
           setIsAdmin(true);
         } else {
