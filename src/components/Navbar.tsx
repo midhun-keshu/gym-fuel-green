@@ -27,14 +27,20 @@ const Navbar: React.FC = () => {
       
       // Check if user is admin
       if (session?.user) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'admin');
-        
-        if (!error && data && data.length > 0) {
+        // Check by email first (hardcoded admin)
+        if (session.user.email === 'admin@gymfood.com') {
           setIsAdmin(true);
+          return;
+        }
+        
+        // Then check database role
+        try {
+          const { data: isAdminResult } = await supabase
+            .rpc('is_admin', { uid: session.user.id });
+          setIsAdmin(isAdminResult === true);
+        } catch (error) {
+          console.log('Admin check failed:', error);
+          setIsAdmin(false);
         }
       }
     };
@@ -47,15 +53,19 @@ const Navbar: React.FC = () => {
       
       // Check if user is admin
       if (session?.user) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'admin');
-        
-        if (!error && data && data.length > 0) {
+        // Check by email first (hardcoded admin)
+        if (session.user.email === 'admin@gymfood.com') {
           setIsAdmin(true);
-        } else {
+          return;
+        }
+        
+        // Then check database role
+        try {
+          const { data: isAdminResult } = await supabase
+            .rpc('is_admin', { uid: session.user.id });
+          setIsAdmin(isAdminResult === true);
+        } catch (error) {
+          console.log('Admin check failed:', error);
           setIsAdmin(false);
         }
       } else {
