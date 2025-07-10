@@ -56,17 +56,16 @@ const Cart = () => {
     try {
       // Check if user is logged in
       const { data: { session } } = await supabase.auth.getSession();
-      let userId = null;
+      let userId = session?.user?.id || '00000000-0000-0000-0000-000000000000';
       
-      if (session) {
-        userId = session.user.id;
-      }
+      console.log('Creating order for user:', userId);
+      console.log('Order details:', { address, phoneNumber, customerName, totalPrice });
       
       // Create order in Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: userId || '00000000-0000-0000-0000-000000000000', // Use a placeholder UUID for guest users
+          user_id: userId,
           delivery_address: address,
           phone_number: phoneNumber,
           total_amount: totalPrice,
@@ -75,9 +74,16 @@ const Cart = () => {
         .select()
         .single();
       
-      if (orderError || !order) {
-        throw new Error(orderError?.message || 'Failed to create order');
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw new Error(orderError.message);
       }
+      
+      if (!order) {
+        throw new Error('Failed to create order - no order returned');
+      }
+      
+      console.log('Order created successfully:', order);
       
       // Create order items
       const orderItems = items.map(item => ({
@@ -87,17 +93,23 @@ const Cart = () => {
         price: item.price
       }));
       
+      console.log('Creating order items:', orderItems);
+      
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(orderItems);
       
       if (itemsError) {
+        console.error('Order items creation error:', itemsError);
         throw new Error(itemsError.message);
       }
+      
+      console.log('Order items created successfully');
 
       // Send WhatsApp notification with detailed order information
       const orderDate = new Date().toLocaleString();
-      const orderDetails = `🍲 *New Order from FuelBox!*\n\n*Customer*: ${customerName}\n*Phone*: ${phoneNumber}\n*Email*: ${customerEmail || 'Not provided'}\n\n*Order #${order.id.substring(0, 8)}*\n*Date*: ${orderDate}\n\n*Items*:\n${items.map(item => `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\n*Total*: ${formatPrice(totalPrice)}\n*Delivery Address*: ${address}\n*Notes*: ${notes || 'None'}\n\n*Thank you for your order!* 🙏`;
+      const customerType = session ? 'Registered Customer' : 'Guest Customer';
+      const orderDetails = `🍲 *New Order from FuelBox!*\n\n*Customer Type*: ${customerType}\n*Customer*: ${customerName}\n*Phone*: ${phoneNumber}\n*Email*: ${customerEmail || 'Not provided'}\n\n*Order #${order.id.substring(0, 8)}*\n*Date*: ${orderDate}\n\n*Items*:\n${items.map(item => `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\n*Total*: ${formatPrice(totalPrice)}\n*Delivery Address*: ${address}\n*Notes*: ${notes || 'None'}\n\n*Thank you for your order!* 🙏`;
       
       sendWhatsAppNotification(orderDetails);
       
@@ -107,7 +119,9 @@ const Cart = () => {
       // Show success message
       toast({
         title: "Order placed successfully!",
-        description: "Your order has been placed. You'll receive a WhatsApp confirmation shortly.",
+        description: session 
+          ? "Your order has been placed and saved to your account. You'll receive a WhatsApp confirmation shortly."
+          : "Your order has been placed as a guest. You'll receive a WhatsApp confirmation shortly.",
       });
       
       // Redirect to homepage
@@ -219,12 +233,15 @@ const Cart = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Checkout</CardTitle>
+                  <p className="text-sm text-gray-500">
+                    No account required - order as guest or login for order history
+                  </p>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleCheckout} className="space-y-4">
                     {/* Customer Information */}
                     <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="name">Full Name *</Label>
                       <Input 
                         id="name" 
                         placeholder="Enter your full name"
@@ -246,7 +263,7 @@ const Cart = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="address">Delivery Address</Label>
+                      <Label htmlFor="address">Delivery Address *</Label>
                       <Textarea 
                         id="address" 
                         placeholder="Enter your full address"
@@ -257,7 +274,7 @@ const Cart = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phone">Phone Number *</Label>
                       <Input
                         id="phone"
                         type="tel"
@@ -286,6 +303,9 @@ const Cart = () => {
                       >
                         {isSubmitting ? "Processing..." : "Place Order"}
                       </Button>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Order confirmation will be sent via WhatsApp
+                      </p>
                     </div>
                   </form>
                 </CardContent>
