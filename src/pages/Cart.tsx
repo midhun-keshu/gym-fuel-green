@@ -24,12 +24,12 @@ const Cart = () => {
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderConfirmed, setOrderConfirmed] = useState(false);
 
-  // Updated to include a more reliable WhatsApp business number format
+  // Your Twilio WhatsApp number
   const sendWhatsAppNotification = (orderDetails: string) => {
-    // Format the WhatsApp message
     const message = encodeURIComponent(orderDetails);
-    const whatsappNumber = '9633542347'; // Replace with your actual WhatsApp business number
+    const whatsappNumber = '14155238886'; // Your Twilio WhatsApp number
     
     // Create WhatsApp URL
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${message}`;
@@ -61,82 +61,124 @@ const Cart = () => {
       console.log('Creating order for user:', userId);
       console.log('Order details:', { address, phoneNumber, customerName, totalPrice });
       
-      // Create order in Supabase
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: userId,
-          delivery_address: address,
-          phone_number: phoneNumber,
-          total_amount: totalPrice,
-          status: 'pending'
-        })
-        .select()
-        .single();
-      
-      if (orderError) {
-        console.error('Order creation error:', orderError);
-        throw new Error(orderError.message);
-      }
-      
-      if (!order) {
-        throw new Error('Failed to create order - no order returned');
-      }
-      
-      console.log('Order created successfully:', order);
-      
-      // Create order items
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        food_item_id: item.id,
-        quantity: item.quantity,
-        price: item.price
-      }));
-      
-      console.log('Creating order items:', orderItems);
-      
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-      
-      if (itemsError) {
-        console.error('Order items creation error:', itemsError);
-        throw new Error(itemsError.message);
-      }
-      
-      console.log('Order items created successfully');
-
-      // Send WhatsApp notification with detailed order information
+      // Prepare order details for WhatsApp notification
       const orderDate = new Date().toLocaleString();
       const customerType = session ? 'Registered Customer' : 'Guest Customer';
-      const orderDetails = `🍲 *New Order from FuelBox!*\n\n*Customer Type*: ${customerType}\n*Customer*: ${customerName}\n*Phone*: ${phoneNumber}\n*Email*: ${customerEmail || 'Not provided'}\n\n*Order #${order.id.substring(0, 8)}*\n*Date*: ${orderDate}\n\n*Items*:\n${items.map(item => `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\n*Total*: ${formatPrice(totalPrice)}\n*Delivery Address*: ${address}\n*Notes*: ${notes || 'None'}\n\n*Thank you for your order!* 🙏`;
+      const orderDetails = `🍲 *New Order from FuelBox!*\n\n*Customer Type*: ${customerType}\n*Customer*: ${customerName}\n*Phone*: ${phoneNumber}\n*Email*: ${customerEmail || 'Not provided'}\n\n*Order Date*: ${orderDate}\n\n*Items*:\n${items.map(item => `• ${item.quantity}x ${item.name} - ${formatPrice(item.price * item.quantity)}`).join('\n')}\n\n*Total*: ${formatPrice(totalPrice)}\n*Delivery Address*: ${address}\n*Notes*: ${notes || 'None'}\n\n*Thank you for your order!* 🙏`;
       
+      // Send WhatsApp notification immediately
       sendWhatsAppNotification(orderDetails);
       
-      // Clear cart after successful order
+      // Try to create order in database (for logged-in users and guest tracking)
+      try {
+        const { data: order, error: orderError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: userId,
+            delivery_address: address,
+            phone_number: phoneNumber,
+            total_amount: totalPrice,
+            status: 'pending'
+          })
+          .select()
+          .single();
+        
+        if (!orderError && order) {
+          console.log('Order created successfully:', order);
+          
+          // Create order items
+          const orderItems = items.map(item => ({
+            order_id: order.id,
+            food_item_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          }));
+          
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+          
+          if (itemsError) {
+            console.error('Order items creation error:', itemsError);
+          } else {
+            console.log('Order items created successfully');
+          }
+        } else {
+          console.log('Order creation failed, but WhatsApp notification sent:', orderError);
+        }
+      } catch (dbError) {
+        console.log('Database operation failed, but WhatsApp notification sent:', dbError);
+      }
+      
+      // Clear cart and show success
       clearCart();
+      setOrderConfirmed(true);
       
       // Show success message
       toast({
         title: "Order placed successfully!",
-        description: session 
-          ? "Your order has been placed and saved to your account. You'll receive a WhatsApp confirmation shortly."
-          : "Your order has been placed as a guest. You'll receive a WhatsApp confirmation shortly.",
+        description: "Your order has been sent to our staff via WhatsApp. They will contact you shortly to confirm delivery details.",
       });
       
-      // Redirect to homepage
-      navigate('/');
     } catch (error: any) {
-      console.error('Error placing order:', error);
+      console.error('Error in order process:', error);
       toast({
-        title: "Error placing order",
-        description: error.message || "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: "Order notification sent",
+        description: "Your order details have been sent to our staff via WhatsApp. They will contact you to confirm.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Order confirmation screen
+  if (orderConfirmed) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8 flex-grow flex items-center justify-center">
+          <Card className="max-w-md w-full text-center">
+            <CardHeader>
+              <CardTitle className="text-2xl text-gym-600">Order Confirmed! 🎉</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-6xl">✅</div>
+              <p className="text-lg font-medium">Thank you for your order!</p>
+              <p className="text-gray-600">
+                Your order details have been sent to our staff via WhatsApp. 
+                They will contact you shortly at <strong>{phoneNumber}</strong> to confirm 
+                delivery details and timing.
+              </p>
+              <div className="bg-gym-50 p-4 rounded-lg">
+                <p className="text-sm text-gym-700">
+                  <strong>What happens next?</strong><br/>
+                  • Our staff will WhatsApp you within 15 minutes<br/>
+                  • They'll confirm your order and delivery time<br/>
+                  • You'll receive updates on your order status
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter className="flex gap-2">
+              <Button 
+                onClick={() => navigate('/menu')}
+                variant="outline"
+                className="flex-1"
+              >
+                Order More
+              </Button>
+              <Button 
+                onClick={() => navigate('/')}
+                className="flex-1 bg-gym-600 hover:bg-gym-700"
+              >
+                Go Home
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -232,14 +274,13 @@ const Cart = () => {
             <div className="md:col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle>Checkout</CardTitle>
-                  <p className="text-sm text-gray-500">
-                    No account required - order as guest or login for order history
+                  <CardTitle>Quick Order</CardTitle>
+                  <p className="text-sm text-gym-600 font-medium">
+                    📱 Instant WhatsApp confirmation
                   </p>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleCheckout} className="space-y-4">
-                    {/* Customer Information */}
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name *</Label>
                       <Input 
@@ -249,6 +290,19 @@ const Cart = () => {
                         onChange={(e) => setCustomerName(e.target.value)}
                         required
                       />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        required
+                      />
+                      <p className="text-xs text-gray-500">We'll contact you on WhatsApp</p>
                     </div>
                     
                     <div className="space-y-2">
@@ -274,18 +328,6 @@ const Cart = () => {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number *</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
                       <Label htmlFor="notes">Order Notes (Optional)</Label>
                       <Textarea
                         id="notes"
@@ -301,10 +343,10 @@ const Cart = () => {
                         className="w-full bg-gym-600 hover:bg-gym-700"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? "Processing..." : "Place Order"}
+                        {isSubmitting ? "Sending Order..." : "Place Order Now 📱"}
                       </Button>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        Order confirmation will be sent via WhatsApp
+                      <p className="text-xs text-center mt-2 text-gym-600">
+                        ✅ Instant WhatsApp notification to our staff
                       </p>
                     </div>
                   </form>
