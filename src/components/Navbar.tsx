@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ const Navbar: React.FC = () => {
       
       // Check if user is admin
       if (session?.user) {
-        // Check by email first (hardcoded admin)
+        // Check by email first (hardcoded admin) - fixed email format
         if (session.user.email === 'admin@gymfood.com') {
           setIsAdmin(true);
           return;
@@ -53,7 +52,7 @@ const Navbar: React.FC = () => {
       
       // Check if user is admin
       if (session?.user) {
-        // Check by email first (hardcoded admin)
+        // Check by email first (hardcoded admin) - fixed email format
         if (session.user.email === 'admin@gymfood.com') {
           setIsAdmin(true);
           return;

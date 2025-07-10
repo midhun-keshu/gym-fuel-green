@@ -24,6 +24,19 @@ const Register = () => {
     setIsLoading(true);
 
     try {
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Password validation
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+
+      console.log('Attempting to register with email:', email);
+
       // Register with Supabase
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -33,25 +46,43 @@ const Register = () => {
             full_name: name,
             phone: phone,
           },
+          emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
       if (error) {
+        console.error('Registration error:', error);
         throw error;
       }
 
+      console.log('Registration successful:', data);
+
       toast({
         title: "Registration successful",
-        description: "Please check your email for verification.",
+        description: "Your account has been created successfully. You can now log in.",
       });
       
-      // For the sake of this demo, we'll navigate to login
-      // In a real app, you might want to handle email verification
+      // Navigate to login page
       navigate("/login");
     } catch (error: any) {
+      console.error('Registration failed:', error);
+      
+      let errorMessage = "An error occurred during registration";
+      
+      // Handle specific error cases
+      if (error.message?.includes('email_address_invalid')) {
+        errorMessage = "Please enter a valid email address";
+      } else if (error.message?.includes('already_registered')) {
+        errorMessage = "An account with this email already exists";
+      } else if (error.message?.includes('weak_password')) {
+        errorMessage = "Password is too weak. Please choose a stronger password";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Registration failed",
-        description: error.message || "An error occurred during registration",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -92,6 +123,9 @@ const Register = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+                <p className="text-xs text-gray-500">
+                  Use admin@gymfood.com for admin access
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
@@ -115,7 +149,7 @@ const Register = () => {
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Password must be at least 8 characters long and include a number and special character
+                  Password must be at least 6 characters long
                 </p>
               </div>
               <Button 
